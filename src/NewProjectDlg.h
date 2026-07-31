@@ -32,6 +32,7 @@ public:
 	AudioFormat GetAudioFormat();
 	AspectRatio GetAspectRatio();
 	DefaultPostCommand GetDefPostCommand();
+	bool IsNoMenu();
 	
 protected:
 	int propIndex;

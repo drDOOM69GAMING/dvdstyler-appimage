@@ -69,6 +69,13 @@ bool wxFfmpegMediaTranscoder::AddInputFile(const wxString& fileName, const wxStr
 	if (fileName == "/dev/zero") {
 		m_cmd += " -ac 2 -ar 48000 -f s16le -i /dev/zero";
 	} else {
+#ifndef __WXMSW__
+		// use VA-API hardware decoding for the first (video) input file
+		if (m_inputFileCount == 0 && s_config.GetUseVAAPI()) {
+			AddOption(wxT("hwaccel"), wxT("vaapi"));
+			AddOption(wxT("hwaccel_output_format"), wxT("yuv420p"));
+		}
+#endif
 		if (format.length()) {
 			if ((int) format.Index(':') > 0) {
 				AddOption(wxT("f"), format.BeforeFirst(':'));

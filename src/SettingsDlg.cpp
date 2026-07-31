@@ -257,6 +257,7 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	
 	AddSpinProp(coreGrid, _("Default audio bitrate:"), s_config.GetAudioBitrate(def), 1, 9999, 80, _("KBit/s"));
 	AddSpinProp(coreGrid, _("Thread count:"), s_config.GetThreadCount(def), 1, 99, 80);
+	AddCheckProp(coreGrid, _("Use hardware video decoding (VA-API)"), s_config.GetUseVAAPI(def));
 	AddSpinProp(coreGrid, _("DVD reserved space:"), s_config.GetDvdReservedSpace(def), 0, 9999999, 80, _("KB"));
 	
 	// Encoder
@@ -379,6 +380,7 @@ bool SettingsDlg::SetValues() {
 	s_config.SetSlideshowVideoCBR(GetBool(i++));
 	s_config.SetAudioBitrate(GetInt(i++));
 	s_config.SetThreadCount(GetInt(i++));
+	s_config.SetUseVAAPI(GetBool(i++));
 	s_config.SetDvdReservedSpace(GetInt(i++));
 	wxString encoder = GetInt(i++) > 0 ? GetString(i - 1) : wxT("");
 	s_config.SetEncoder(encoder);

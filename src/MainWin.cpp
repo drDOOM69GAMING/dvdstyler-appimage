@@ -737,7 +737,7 @@ void MainWin::OnClose(wxCloseEvent &event) {
 
 void MainWin::NewDVD(wxString templateFile, wxString discTitle, wxString discLabel, DvdResolution dvdResolution,
 		DiscCapacity capacity, int videoBitrate, int audioBitrate, VideoFormat videoFormat, AudioFormat audioFormat,
-		AspectRatio aspectRatio, DefaultPostCommand defPostCommand, bool chapterMenu) {
+		AspectRatio aspectRatio, DefaultPostCommand defPostCommand, bool chapterMenu, bool noMenus) {
 	if (aspectRatio == ar16_9 && templateFile.Length()
 			&& wxFile::Exists(templateFile.substr(0, templateFile.length()-5) + wxT("WS.dvdt")))
 		templateFile = templateFile.substr(0, templateFile.length()-5) + wxT("WS.dvdt");
@@ -842,6 +842,17 @@ void MainWin::NewDVD(wxString templateFile, wxString discTitle, wxString discLab
 				}
 			}
 		}
+		if (noMenus) {
+			// remove all menus
+			for (int tsi = -1; tsi < (int) m_dvd->GetTitlesets().GetCount(); tsi++) {
+				PgcArray& menus = m_dvd->GetPgcArray(tsi, true);
+				for (unsigned int mIdx = 0; mIdx < menus.GetCount(); mIdx++)
+					delete menus[mIdx];
+				menus.Clear();
+			}
+			m_dvd->GetVmgm().SetFpc(wxT("jump title 1;"));
+			m_dvd->SetDefPostCommand(cmdJUMP_NEXT_TITLE);
+		}
 	} else {
 		if (m_dvd)
 			delete m_dvd;
@@ -856,7 +867,11 @@ void MainWin::NewDVD(wxString templateFile, wxString discTitle, wxString discLab
 		m_dvd->SetAspectRatio(aspectRatio);
 		m_dvd->SetDefPostCommand(defPostCommand);
 		m_dvd->AddTitleset();
-		m_dvd->AddMenu(-1);
+		if (noMenus) {
+			m_dvd->GetVmgm().SetFpc(wxT("jump title 1;"));
+			m_dvd->SetDefPostCommand(cmdJUMP_NEXT_TITLE);
+		} else
+			m_dvd->AddMenu(-1);
 	}
 	UpdateDVD();
 	SetChanged(false);
@@ -1025,11 +1040,20 @@ void MainWin::OnNew(wxCommandEvent& event) {
 		return;
 	NewProjectDlg dlg(this);
 	if (dlg.ShowModal() == wxID_OK) {
-		TemplateDlg templateDlg(this, dlg.GetAspectRatio());
-		wxString templateFile = templateDlg.ShowModal() == wxID_OK ? templateDlg.GetTemplate() : wxT("");
-		NewDVD(templateFile, templateDlg.GetTitle(), dlg.GetLabel(), dlg.GetDvdResolution(), dlg.GetCapacity(),
+		wxString templateFile = wxT("");
+		wxString title = wxT("");
+		bool chapterMenu = false;
+		if (!dlg.IsNoMenu()) {
+			TemplateDlg templateDlg(this, dlg.GetAspectRatio());
+			if (templateDlg.ShowModal() == wxID_OK) {
+				templateFile = templateDlg.GetTemplate();
+				title = templateDlg.GetTitle();
+				chapterMenu = templateDlg.IsChapterMenu();
+			}
+		}
+		NewDVD(templateFile, title, dlg.GetLabel(), dlg.GetDvdResolution(), dlg.GetCapacity(),
 				dlg.GetVideoBitrate(), dlg.GetAudioBitrate(), dlg.GetVideoFormat(), dlg.GetAudioFormat(),
-				dlg.GetAspectRatio(), dlg.GetDefPostCommand(), templateDlg.IsChapterMenu());
+				dlg.GetAspectRatio(), dlg.GetDefPostCommand(), chapterMenu, dlg.IsNoMenu());
 	}
 }
 

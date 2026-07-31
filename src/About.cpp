@@ -29,6 +29,27 @@ wxString FixEmail(const wxString& str) {
 	return result;
 }
 
+const wxString DOOMS_CHANGELOG = wxT(
+	"DVDStyler ") wxT(APP_VERSION_STR) wxT(" AppImage - DOOMS Change-Log\n\n"
+	"Changes since the original 3.3b4:\n\n"
+	"1. Default temp directory is now ~/.dvdstyler instead of /tmp\n"
+	"   (prevents failed encodes from filling up system space).\n\n"
+	"2. New \"Create DVD without menus\" option added.\n\n"
+	"3. New post-encode prompt: when encoding finishes you can choose\n"
+	"   to Burn the DVD, Create an ISO image, Burn and create ISO,\n"
+	"   or Nothing.\n\n"
+	"4. VA-API hardware video decoding of source files is now used\n"
+	"   when available (toggle in Settings > Generate:\n"
+	"   \"Use hardware video decoding (VA-API)\").\n\n"
+	"5. Dark-mode aware launcher: the app now follows the system\n"
+	"   color scheme automatically.\n\n"
+	"6. About dialog updated: copyright year 2003-2026 and a\n"
+	"   special thanks line added.\n\n"
+	"7. The \"No template\" button in the template dialog now reads\n"
+	"   \"No menu\".\n\n"
+	"8. Version bumped from 3.3b4 to 3.3b5.\n"
+);
+
 About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,
 		wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER) {
     // sets the application icon
@@ -51,6 +72,8 @@ About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,
     aboutinfo->Add(new wxStaticText(aboutPanel, -1, APP_LICENCE), 1, wxEXPAND | wxALIGN_LEFT);
     aboutinfo->Add(new wxStaticText(aboutPanel, -1, _("Copyright: ")), 0, wxALIGN_LEFT);
     aboutinfo->Add(new wxStaticText(aboutPanel, -1, APP_COPYRIGHT), 1, wxEXPAND | wxALIGN_LEFT);
+    aboutinfo->Add(new wxStaticText(aboutPanel, -1, _("Special thanks: ")), 0, wxALIGN_LEFT);
+    aboutinfo->Add(new wxStaticText(aboutPanel, -1, APP_THANKS), 1, wxEXPAND | wxALIGN_LEFT);
 
     // about title/info
     wxBoxSizer* abouttext = new wxBoxSizer(wxVERTICAL);
@@ -159,10 +182,15 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.");
 	// buttons
 	wxBoxSizer* totalpane = new wxBoxSizer(wxVERTICAL);
 	totalpane->Add(notebook, 1, wxEXPAND|wxALL, 6);
+    wxBoxSizer* buttonPane = new wxBoxSizer(wxHORIZONTAL);
+    wxButton* changeLogButton = new wxButton(this, wxID_ANY, _("DOOMS Change-Log"));
+    changeLogButton->Bind(wxEVT_BUTTON, &About::OnChangeLog, this);
+    buttonPane->Add(changeLogButton, 0, wxALIGN_CENTER|wxRIGHT, 5);
     wxButton* okButton = new wxButton(this, wxID_OK, _("OK"));
     okButton->SetDefault();
     okButton->SetFocus();
-    totalpane->Add(okButton, 0, wxALIGN_CENTER|wxLEFT|wxRIGHT|wxBOTTOM, 10);
+    buttonPane->Add(okButton, 0, wxALIGN_CENTER);
+    totalpane->Add(buttonPane, 0, wxALIGN_CENTER|wxALL, 10);
 	
     SetSizerAndFit(totalpane);
 	Center();
@@ -172,4 +200,19 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.");
 
 void About::OnLinkClicked(wxHtmlLinkEvent& event) {
 	wxLaunchDefaultBrowser(event.GetLinkInfo().GetHref());
+}
+
+void About::OnChangeLog(wxCommandEvent& WXUNUSED(event)) {
+	wxDialog dlg(this, -1, _("DOOMS Change-Log"), wxDefaultPosition, wxSize(600, 420));
+	wxBoxSizer* dlgSizer = new wxBoxSizer(wxVERTICAL);
+	wxTextCtrl* text = new wxTextCtrl(&dlg, -1, DOOMS_CHANGELOG,
+			wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
+	text->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+	dlgSizer->Add(text, 1, wxEXPAND | wxALL, 8);
+	wxButton* closeBtn = new wxButton(&dlg, wxID_OK, _("Close"));
+	closeBtn->SetDefault();
+	dlgSizer->Add(closeBtn, 0, wxALIGN_CENTER | wxBOTTOM, 10);
+	dlg.SetSizer(dlgSizer);
+	dlg.CenterOnParent();
+	dlg.ShowModal();
 }

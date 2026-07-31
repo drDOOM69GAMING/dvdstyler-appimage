@@ -225,7 +225,17 @@ bool wxFfmpegMediaEncoder::addVideoStream(int codecId, VideoFormat videoFormat, 
 	m_videoOutbuf = (uint8_t*) av_malloc(VIDEO_BUF_SIZE);
 
 	AVCPBProperties *props;
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+	AVPacketSideData* sd = av_packet_side_data_new(&m_videoStm->codecpar->coded_side_data,
+			&m_videoStm->codecpar->nb_coded_side_data, AV_PKT_DATA_CPB_PROPERTIES, sizeof(*props), 0);
+	props = sd ? (AVCPBProperties*) sd->data : NULL;
+#else
 	props = (AVCPBProperties*) av_stream_new_side_data(m_videoStm, AV_PKT_DATA_CPB_PROPERTIES, sizeof(*props));
+#endif
+	if (props == NULL) {
+		wxLogError(wxT("Could not set video buffer size"));
+		return false;
+	}
 	props->buffer_size = VIDEO_BUF_SIZE;
 	props->max_bitrate = 0;
 	props->min_bitrate = 0;

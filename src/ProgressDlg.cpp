@@ -20,6 +20,7 @@
 #include "ProcessSlideshow.h"
 #include "ProcessSubtitles.h"
 #include "ProcessDvdFilesystem.h"
+#include "ProcessAskOutput.h"
 #include "ProcessPreview.h"
 #include "ProcessIsoImage.h"
 #include "ProcessEccData.h"
@@ -377,6 +378,7 @@ void ProgressDlg::Run(BurnDlg* burnDlg, DVD* dvd) {
 	processes.push_back(new ProcessSubtitles(this, dvd, m_cache, dvdTmpDir)); // subtitle
 	processes.push_back(new ProcessMenuTransitions(this, dvd, dvdTmpDir)); // menu transitions
 	processes.push_back(new ProcessDvdFilesystem(this, dvd, dvdTmpDir, dvdOutDir));
+	processes.push_back(new ProcessAskOutput(this, burnDlg));
 	processes.push_back(new ProcessPreview(this, burnDlg, dvdOutDir));
 	processes.push_back(new ProcessIsoImage(this, burnDlg, dvd, m_cache, dvdOutDir, tmpDir));
 	processes.push_back(new ProcessEccData(this, burnDlg, tmpDir));

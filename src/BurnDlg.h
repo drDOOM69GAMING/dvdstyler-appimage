@@ -45,6 +45,8 @@ public:
 	bool DoAddECC() { return m_addECCCheck->GetValue(); }
 	bool DoBurn() { return m_burnRadioBt->GetValue(); }
 	bool DoFormat() { return m_formatCheck->GetValue(); }
+	void SetCreateIso(bool value) { m_isoRadioBt->SetValue(value); }
+	void SetBurn(bool value) { m_burnRadioBt->SetValue(value); }
 	wxString GetDevice();
 	int GetSpeed();
 

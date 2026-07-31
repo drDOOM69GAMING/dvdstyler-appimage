@@ -31,6 +31,7 @@ NewProjectDlg::NewProjectDlg(wxWindow *parent, bool create): wxPropDlg(parent) {
 
 void NewProjectDlg::CreatePropPanel(wxSizer* sizer) {
 	CreateDVDPropPanel(sizer, NULL);
+	AddCheckProp(sizer, _("Create DVD without menus"), false);
 }
 
 void NewProjectDlg::CreateDVDPropPanel(wxSizer* sizer, DVD* dvd) {
@@ -199,4 +200,9 @@ AudioFormat NewProjectDlg::GetAudioFormat() {
 DefaultPostCommand NewProjectDlg::GetDefPostCommand() {
 	int i2 = s_config.GetAllowHdTitles() ? 1 : 0;
 	return (DefaultPostCommand) (GetInt(propIndex + i2 + 8));
+}
+
+bool NewProjectDlg::IsNoMenu() {
+	int i2 = s_config.GetAllowHdTitles() ? 1 : 0;
+	return GetBool(propIndex + i2 + 9);
 }

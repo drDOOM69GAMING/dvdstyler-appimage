@@ -81,6 +81,13 @@ wxString wxFindDataDirectory(wxString dir)
   if (wxDir::Exists(dname.GetFullPath()))
 	return dname.GetFullPath();
 #ifdef DATADIR
+  // check APPDIR (AppImage) first
+  wxString appDir;
+  if (wxGetEnv(wxT("APPDIR"), &appDir)) {
+	wxString d = appDir + wxT("/usr/share/dvdstyler/") + dir + wxFILE_SEP_PATH;
+	if (wxDir::Exists(d))
+	  return d;
+  }
   return wxString(DATADIR,wxConvLocal) + wxFILE_SEP_PATH + dir + wxFILE_SEP_PATH;
 #else
   return wxGetAppPath() + dir + wxFILE_SEP_PATH;
@@ -97,6 +104,13 @@ wxString wxFindDataFile(wxString filename)
   if (wxFileExists(fname.GetFullPath()))
 	return fname.GetFullPath();
 #ifdef DATADIR
+  // check APPDIR (AppImage) first
+  wxString appDir;
+  if (wxGetEnv(wxT("APPDIR"), &appDir)) {
+	wxString d = appDir + wxT("/usr/share/dvdstyler/") + filename;
+	if (wxFileExists(d))
+	  return d;
+  }
   return wxString(DATADIR,wxConvLocal) + wxFILE_SEP_PATH + filename;
 #else
   return wxGetAppPath() + filename;

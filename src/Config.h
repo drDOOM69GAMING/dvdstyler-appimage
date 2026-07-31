@@ -46,8 +46,17 @@ const int DEF_MENU_FRAME_COUNT = 12;
 const int DEF_MENU_VIDEO_BITRATE = 8000;
 const int DEF_SLIDESHOW_VIDEO_BITRATE = 8000;
 const int DEF_THREAD_COUNT = wxThread::GetCPUCount() > 0 ? wxThread::GetCPUCount() : 1;
+#ifdef __WXMSW__
+	const bool DEF_USE_VAAPI = false;
+#else
+	#define DEF_USE_VAAPI (wxFileExists(wxT("/dev/dri/renderD128")))
+#endif
 const int DEF_DVD_RESERVED_SPACE = 0; // KB
-#define DEF_GEN_TEMP_DIR wxFileName::GetTempDir()
+#ifdef __WXMSW__
+	#define DEF_GEN_TEMP_DIR wxFileName::GetTempDir()
+#else
+	#define DEF_GEN_TEMP_DIR (wxGetHomeDir() + wxFILE_SEP_PATH + wxT(".dvdstyler"))
+#endif
 #define DEF_GEN_OUTPUT_DIR wxGetHomeDir()
 #ifdef __WXMSW__
 	const bool DEF_PREVIEW_DO        = false;
@@ -221,6 +230,7 @@ public:
     CONFIG_PROP_INT(SlideshowVideoBitrate, _T("Generate/SlideshowVideoBitrate"), DEF_SLIDESHOW_VIDEO_BITRATE)
 	CONFIG_PROP_BOOL(SlideshowVideoCBR, _T("Generate/SlideshowVideoCBR"), false)
     CONFIG_PROP_INT(ThreadCount, _T("Generate/ThreadCount"), DEF_THREAD_COUNT)
+	CONFIG_PROP_BOOL(UseVAAPI, _T("Generate/UseVAAPI"), DEF_USE_VAAPI)
     CONFIG_PROP_INT(DvdReservedSpace, _T("Generate/DvdReservedSpace"), DEF_DVD_RESERVED_SPACE)
     CONFIG_PROP_BOOL(UseMplex, _T("Generate/UseMplex"), DEF_USE_MPLEX)
     CONFIG_PROP_BOOL(UseMplexForMenus, _T("Generate/UseMplexForMenus"), DEF_USE_MPLEX_FOR_MENUS)

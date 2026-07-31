@@ -71,7 +71,7 @@ public:
 	void NewDVD(wxString templateFile, wxString discTitle, wxString discLabel,
 			DvdResolution dvdResolution, DiscCapacity capacity, int videoBitrate,
 			int audioBitrate, VideoFormat videoFormat, AudioFormat audioFormat, AspectRatio aspectRatio,
-			DefaultPostCommand defPostCommand = cmdCALL_LAST_MENU, bool chapterMenu = false);
+			DefaultPostCommand defPostCommand = cmdCALL_LAST_MENU, bool chapterMenu = false, bool noMenus = false);
     /** Loads a project file */
 	bool Open(wxString filename);
 	/** Shows open dialog */

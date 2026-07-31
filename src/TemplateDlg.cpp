@@ -89,7 +89,7 @@ TemplateDlg::TemplateDlg(wxWindow* parent, AspectRatio aspectRatio) {
 	mainSizer->Add(staticLine1, 0, wxEXPAND, 0);
 	stdDialogButtonSizer = new wxStdDialogButtonSizer();
 	stdDialogButtonSizer->AddButton(new wxButton(this, wxID_OK, wxEmptyString));
-	stdDialogButtonSizer->AddButton(new wxButton(this, wxID_CANCEL, _("&No template")));
+	stdDialogButtonSizer->AddButton(new wxButton(this, wxID_CANCEL, _("&No menu")));
 	stdDialogButtonSizer->Realize();
 	mainSizer->Add(stdDialogButtonSizer, 0, wxALL|wxEXPAND, 5);
 	SetSizer(mainSizer);

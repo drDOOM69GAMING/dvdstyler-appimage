@@ -16,6 +16,7 @@ const wxString APP_MAINT		= wxString(wxT("Alex Thüring"), wxConvUTF8);
 const wxString APP_NAME			= _T("DVDStyler");
 const wxString APP_LICENCE		= _T("GPL");
 const wxString APP_COPYRIGHT	= wxT("(c) ") + wxString(wxT(APP_COPYRIGHT_YEARS)) + wxT(" ") + APP_MAINT;
+const wxString APP_THANKS		= _T("drDOOM69GAMING");
 const wxString APP_WEBSITE		= _T("http://www.dvdstyler.org");
 
 class About: public wxDialog {
@@ -24,5 +25,6 @@ public:
     
 private:
 	void OnLinkClicked(wxHtmlLinkEvent& event);
+	void OnChangeLog(wxCommandEvent& event);
 	DECLARE_EVENT_TABLE()
 };
