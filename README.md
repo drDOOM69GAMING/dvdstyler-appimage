@@ -1,5 +1,7 @@
 # DVDStyler AppImage
 
+[![Build Status](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/verify.yml/badge.svg)](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/verify.yml)
+
 A custom build of DVDStyler packaged as a portable AppImage for Linux.
 Based on DVDStyler 3.3b4 with improvements, released here as version 3.3b5.
 

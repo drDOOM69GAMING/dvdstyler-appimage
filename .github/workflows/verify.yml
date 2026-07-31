@@ -1,0 +1,26 @@
+name: Verify
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download AppImage from release
+        run: gh release download v3.3b5 -R drDOOM69GAMING/dvdstyler-appimage
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract and check feature strings
+        run: |
+          chmod +x DVDStyler-3.3b5-x86_64.AppImage
+          ./DVDStyler-3.3b5-x86_64.AppImage --appimage-extract >/dev/null 2>&1
+          test -f squashfs-root/usr/bin/dvdstyler || { echo "binary missing"; exit 1; }
+          for s in "DOOMS Change-Log" "No menu" "UseVAAPI" "Encoding is complete"; do
+            grep -aq "$s" squashfs-root/usr/bin/dvdstyler || { echo "MISSING: $s"; exit 1; }
+          done
+          echo "All feature strings verified"
