@@ -16,5 +16,9 @@
 /configure
 /*.bz2
 /DVDStyler.app/
+/DVDStyler.AppDir/
+/.appimage-tools/
+/squashfs-root/
+/*.AppImage
 *.dmg
 /.DS_Store

@@ -93,6 +93,21 @@ const wxString DEF_SPUMUX_CMD    = _T("spumux -P -s $STREAM \"$FILE_CONF\"");
 const wxString DEF_DVDAUTHOR_CMD = _T("dvdauthor -o \"$DIR\" -x \"$FILE_CONF\"");
 const wxString DEF_ISO_CMD       = _T("mkisofs -V \"$VOL_ID\" -o \"$FILE\" -dvd-video \"$DIR\"");
 const wxString DEF_ISO_SIZE_CMD  = _T("mkisofs -quiet -print-size \"$DIR\"");
+// UDF 1.02 hybrid (ISO9660 + UDF): produced by mkisofs/cdrtools, works with
+// software players and most hardware players. Note: modern xorriso no longer
+// has UDF write support (removed from libisofs), so it cannot build UDF 2.50.
+// For strict UDF 2.50 (required by the Blu-ray/AVCHD specs) point this at a
+// UDF 2.50 capable tool, e.g. udfclient's "mkudfimage".
+const wxString DEF_BLURAY_ISO_CMD = _T("mkisofs -udf -V \"$VOL_ID\" -o \"$FILE\" \"$DIR\"");
+const wxString DEF_BLURAY_TSMUXER_CMD = _T("tsMuxeR");
+const int DEF_BLURAY_VIDEO_BITRATE = 25000; // Kbit/s
+const int DEF_BLURAY_AUDIO_BITRATE = 384; // Kbit/s
+const int DEF_AVCHD_VIDEO_BITRATE = 9000; // Kbit/s (DVD fit)
+// HD authoring mode: 0 = none, 1 = Blu-ray (BD-R/BD-RE), 2 = AVCHD (DVD)
+const int BD_MODE_NONE = 0;
+const int BD_MODE_BLURAY = 1;
+const int BD_MODE_AVCHD = 2;
+const int DEF_BD_MODE = BD_MODE_NONE;
 const wxString DEF_BURN_SCAN_CMD = _T("dvd+rw-mediainfo $DEVICE");
 const wxString DEF_BURN_CMD      = _T("growisofs -V \"$VOL_ID\" -dvd-compat -Z $DEV -dvd-video \"$DIR\" $SPEEDSTR");
 #ifdef __WXMAC__
@@ -225,6 +240,12 @@ public:
 	CONFIG_PROP_BOOL(MenuVideoCBR, _T("Generate/MenuVideoCBR"), false)
 	CONFIG_PROP_BOOL(AllowHdMenues, _T("Generate/AllowHdMenues"), false)
 	CONFIG_PROP_BOOL(AllowHdTitles, _T("Generate/AllowHdTitles"), false)
+	CONFIG_PROP_INT(BlurayMode, _T("Generate/BlurayMode"), DEF_BD_MODE)
+	CONFIG_PROP_INT(BlurayVideoBitrate, _T("Generate/BlurayVideoBitrate"), DEF_BLURAY_VIDEO_BITRATE)
+	CONFIG_PROP_INT(AvchdVideoBitrate, _T("Generate/AvchdVideoBitrate"), DEF_AVCHD_VIDEO_BITRATE)
+	CONFIG_PROP_INT(BlurayAudioBitrate, _T("Generate/BlurayAudioBitrate"), DEF_BLURAY_AUDIO_BITRATE)
+	CONFIG_PROP(BlurayIsoCmd, _T("Iso/BlurayCmd"), DEF_BLURAY_ISO_CMD)
+	CONFIG_PROP(BlurayTsMuxeRCmd, _T("Generate/BlurayTsMuxeRCmd"), DEF_BLURAY_TSMUXER_CMD)
 	CONFIG_PROP_BOOL(DrawButtonsOnBackground, _T("Generate/DrawButtonsOnBackground"), true)
 	CONFIG_PROP_BOOL(ButtonsOffset2px, _T("Generate/ButtonsOffset2px"), false)
     CONFIG_PROP_INT(SlideshowVideoBitrate, _T("Generate/SlideshowVideoBitrate"), DEF_SLIDESHOW_VIDEO_BITRATE)

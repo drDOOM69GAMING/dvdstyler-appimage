@@ -1,0 +1,53 @@
+name: Build AppImage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf automake libtool pkg-config bison flex zip gettext xmlto unzip \
+            libwxgtk3.0-gtk3-dev libwxsvg-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavfilter-dev \
+            libexif-dev libfontconfig1-dev libudev-dev libdbus-1-dev \
+            librsvg2-dev desktop-file-utils file \
+            ffmpeg dvdauthor mjpegtools genisoimage dvd+rw-tools
+
+      - name: Build AppImage
+        run: bash packaging/build-appimage.sh
+
+      - name: Verify AppImage contents
+        run: |
+          chmod +x DVDStyler-*-x86_64.AppImage
+          ./DVDStyler-*-x86_64.AppImage --appimage-extract >/dev/null
+          for b in dvdstyler dvdauthor spumux mplex mkisofs growisofs dvd+rw-mediainfo dvd-ram-control tsMuxeR ffmpeg ffprobe; do
+            test -x "squashfs-root/usr/bin/$b" || { echo "MISSING: $b"; exit 1; }
+          done
+          test -f squashfs-root/AppRun || { echo "MISSING: AppRun"; exit 1; }
+          grep -aq "export PATH=.*\$APPDIR/usr/bin" squashfs-root/AppRun || { echo "AppRun PATH export missing"; exit 1; }
+          grep -aq "BlurayMode" squashfs-root/usr/bin/dvdstyler || { echo "Blu-ray config strings missing"; exit 1; }
+          echo "All bundled tools verified"
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dvdstyler-appimage
+          path: DVDStyler-*-x86_64.AppImage
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: DVDStyler-*-x86_64.AppImage

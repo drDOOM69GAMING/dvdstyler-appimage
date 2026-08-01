@@ -20,6 +20,7 @@
 #include "ProcessSlideshow.h"
 #include "ProcessSubtitles.h"
 #include "ProcessDvdFilesystem.h"
+#include "ProcessBluray.h"
 #include "ProcessAskOutput.h"
 #include "ProcessPreview.h"
 #include "ProcessIsoImage.h"
@@ -372,17 +373,25 @@ void ProgressDlg::Run(BurnDlg* burnDlg, DVD* dvd) {
 	// processes
 	vector<Process*> processes;
 	processes.push_back(new ProcessProjectInfo(this, dvd)); // project info
-	processes.push_back(new ProcessMenu(this, dvd, dvdTmpDir)); // menus
-	processes.push_back(new ProcessEncode(this, dvd, m_cache, dvdTmpDir)); // titles
-	processes.push_back(new ProcessSlideshow(this, dvd, dvdTmpDir)); // slideshow
-	processes.push_back(new ProcessSubtitles(this, dvd, m_cache, dvdTmpDir)); // subtitle
-	processes.push_back(new ProcessMenuTransitions(this, dvd, dvdTmpDir)); // menu transitions
-	processes.push_back(new ProcessDvdFilesystem(this, dvd, dvdTmpDir, dvdOutDir));
+	if (s_config.GetBlurayMode() != BD_MODE_NONE) {
+		processes.push_back(new ProcessBluray(this, dvd, burnDlg, dvdOutDir, tmpDir)); // HD titles
+	} else {
+		processes.push_back(new ProcessMenu(this, dvd, dvdTmpDir)); // menus
+		processes.push_back(new ProcessEncode(this, dvd, m_cache, dvdTmpDir)); // titles
+		processes.push_back(new ProcessSlideshow(this, dvd, dvdTmpDir)); // slideshow
+		processes.push_back(new ProcessSubtitles(this, dvd, m_cache, dvdTmpDir)); // subtitle
+		processes.push_back(new ProcessMenuTransitions(this, dvd, dvdTmpDir)); // menu transitions
+		processes.push_back(new ProcessDvdFilesystem(this, dvd, dvdTmpDir, dvdOutDir));
+	}
 	processes.push_back(new ProcessAskOutput(this, burnDlg));
-	processes.push_back(new ProcessPreview(this, burnDlg, dvdOutDir));
-	processes.push_back(new ProcessIsoImage(this, burnDlg, dvd, m_cache, dvdOutDir, tmpDir));
-	processes.push_back(new ProcessEccData(this, burnDlg, tmpDir));
-	processes.push_back(new ProcessFormatDvd(this, burnDlg));
+	if (s_config.GetBlurayMode() != BD_MODE_NONE) {
+		processes.push_back(new ProcessBlurayIso(this, dvd, burnDlg, dvdOutDir, tmpDir)); // UDF 2.50 ISO
+	} else {
+		processes.push_back(new ProcessPreview(this, burnDlg, dvdOutDir));
+		processes.push_back(new ProcessIsoImage(this, burnDlg, dvd, m_cache, dvdOutDir, tmpDir));
+		processes.push_back(new ProcessEccData(this, burnDlg, tmpDir));
+		processes.push_back(new ProcessFormatDvd(this, burnDlg));
+	}
 	processes.push_back(new ProcessBurn(this, burnDlg, dvd, dvdOutDir, tmpDir));
 
 	// remove unused files from cache

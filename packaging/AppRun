@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -e
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+export APPDIR="$HERE"
+export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# make the bundled authoring/burning tools available
+export PATH="$APPDIR/usr/bin${PATH:+:$PATH}"
+export GTK_DATA_PREFIX="$APPDIR"
+COLOR_SCHEME="$(dbus-send --session --dest=org.freedesktop.portal.Desktop --type=method_call --print-reply --reply-timeout=1000 /org/freedesktop/portal/desktop org.freedesktop.portal.Settings.Read 'string:org.freedesktop.appearance' 'string:color-scheme' 2>/dev/null | tail -n1 | cut -b35- | cut -d' ' -f2 || printf '')"
+if [ -z "$COLOR_SCHEME" ]; then
+    COLOR_SCHEME="$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null || printf '')"
+fi
+case "$COLOR_SCHEME" in
+    "1"|"'prefer-dark'") GTK_THEME_VARIANT="dark";;
+    *) GTK_THEME_VARIANT="light";;
+esac
+export GTK_THEME="${GTK_THEME:-Adwaita:$GTK_THEME_VARIANT}"
+export GDK_BACKEND=x11
+export XDG_DATA_DIRS="$APPDIR/usr/share:/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
+export GTK_EXE_PREFIX="$APPDIR/usr"
+export GTK_PATH="$APPDIR/usr/lib/gtk-3.0"
+export GTK_IM_MODULE_FILE="$APPDIR/usr/lib/gtk-3.0/3.0.0/immodules.cache"
+export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+export GIO_EXTRA_MODULES="$APPDIR/usr/lib/gio/modules"
+exec "$APPDIR/usr/bin/dvdstyler" "$@"

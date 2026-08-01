@@ -315,6 +315,19 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	AddCheckProp(coreGrid, _("re-encode by default"), s_config.GetDefRencodeNtscFilm(def));
 	AddText(coreGrid, _("HD video:"));
 	AddCheckProp(coreGrid, _("allow (experimental)"), s_config.GetAllowHdTitles(def));
+	AddText(coreGrid, _("HD output:"));
+	grpSizer = BeginGroup(coreGrid, wxT(""));
+	labels.clear();
+	labels.Add(_("none"));
+	labels.Add(_("Blu-ray (BD-R/BD-RE)"));
+	labels.Add(_("AVCHD (DVD-R/RW)"));
+	AddRadioGroupProp(grpSizer, labels, s_config.GetBlurayMode(def));
+	EndGroup();
+	AddSpinProp(coreGrid, _("Blu-ray video bitrate:"), s_config.GetBlurayVideoBitrate(def), 1000, 40000, 80, _("KBit/s"));
+	AddSpinProp(coreGrid, _("AVCHD video bitrate:"), s_config.GetAvchdVideoBitrate(def), 1000, 18000, 80, _("KBit/s"));
+	AddSpinProp(coreGrid, _("Audio bitrate:"), s_config.GetBlurayAudioBitrate(def), 128, 640, 80, _("KBit/s"));
+	AddTextProp(coreGrid, _("tsMuxeR command:"), s_config.GetBlurayTsMuxeRCmd(def));
+	AddTextProp(coreGrid, _("Blu-ray ISO command:"), s_config.GetBlurayIsoCmd(def));
 
 	grpSizer = BeginGroup(debugSizer, _("Debug"));
 	AddCheckProp(grpSizer, _("Don't remove temp files"), !s_config.GetRemoveTempFiles(def));
@@ -402,6 +415,12 @@ bool SettingsDlg::SetValues() {
 	s_config.SetUseMplexForMenus(mplex == 0 || mplex == 2);
 	s_config.SetDefRencodeNtscFilm(GetBool(i++));
 	s_config.SetAllowHdTitles(GetBool(i++));
+	s_config.SetBlurayMode(GetInt(i++));
+	s_config.SetBlurayVideoBitrate(GetInt(i++));
+	s_config.SetAvchdVideoBitrate(GetInt(i++));
+	s_config.SetBlurayAudioBitrate(GetInt(i++));
+	s_config.SetBlurayTsMuxeRCmd(GetString(i++));
+	s_config.SetBlurayIsoCmd(GetString(i++));
 	s_config.SetRemoveTempFiles(!GetBool(i++));
 	return true;
 }
