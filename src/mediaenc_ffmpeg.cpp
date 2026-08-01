@@ -309,12 +309,17 @@ bool wxFfmpegMediaEncoder::addAudioStream(int codecId) {
 	c->sample_rate = 48000;
 	c->sample_fmt = sampleFmt;
 
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 37, 100)
 	AVChannelLayout chLayoutStereo;
 	av_channel_layout_default(&chLayoutStereo, 2);
 	if (av_channel_layout_copy(&c->ch_layout, &chLayoutStereo)) {
 		wxLogError("Failed to set 2 channels");
 		return false;
 	}
+#else
+	c->channel_layout = AV_CH_LAYOUT_STEREO;
+	c->channels = 2;
+#endif
 
 	if (m_audioStm && avcodec_parameters_from_context(m_audioStm->codecpar, c) < 0) {
 		wxLogError("Failed to copy encoder parameters to output audio stream");
@@ -335,10 +340,14 @@ bool wxFfmpegMediaEncoder::addAudioStream(int codecId) {
 
 	m_audioFrame->nb_samples = c->frame_size;
 	m_audioFrame->format = c->sample_fmt;
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 37, 100)
 	if (av_channel_layout_copy(&m_audioFrame->ch_layout, &c->ch_layout) < 0) {
 		wxLogError("Could not open copy channel layout");
 		return false;
 	}
+#else
+	m_audioFrame->channel_layout = c->channel_layout;
+#endif
 		
 	int ret = av_frame_get_buffer(m_audioFrame, 0); // allocate the data buffers
 	if (ret < 0) {
@@ -348,7 +357,11 @@ bool wxFfmpegMediaEncoder::addAudioStream(int codecId) {
 	ret = av_frame_make_writable(m_audioFrame);
 	if (ret < 0)
 		return false;
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 37, 100)
 	for (int i = 0; i < c->ch_layout.nb_channels; i++) {
+#else
+	for (int i = 0; i < c->channels; i++) {
+#endif
 		uint16_t *samples = (uint16_t*)m_audioFrame->data[i];
 		if (samples) {
 		memset(samples, 0, c->frame_size * av_get_bytes_per_sample(c->sample_fmt));
