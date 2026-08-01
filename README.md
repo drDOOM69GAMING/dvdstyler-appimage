@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/build.yml/badge.svg)](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/build.yml)
 
 A custom build of DVDStyler packaged as a portable AppImage for Linux.
-Based on DVDStyler 3.3b4 with improvements, released here as version 3.3b7.
+Based on DVDStyler 3.3b4 with improvements, released here as version 3.3b9.
 
 ## What is this
 
@@ -90,9 +90,10 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     instead of using a fixed bitrate. No more "over sized" warnings unless the
     content physically cannot fit at the minimum bitrate; the AVCHD/Blu-ray
     bitrate spinners are disabled while auto-fit is on
-26. The Blu-ray/AVCHD ISO is now built with `mkisofs -udf -iso-level 3`, which
-    produces a UDF 1.02 hybrid image (ISO9660 + UDF) that works with software
-    players and most hardware players
+26. The Blu-ray/AVCHD ISO is now built with a bundled pure-Python UDF 2.50
+    builder (`udf250`), producing a genuine UDF 2.50 image (no ISO9660 layer)
+    in the same layout as the reference PS4-proven discs. `mkisofs` is kept
+    only for DVD-Video images
 27. Fixed directory iteration bugs (wxDir::GetFirst/GetNext misuse) in the
     cache cleaner, temp-dir cleaner, DVD filesystem cleanup and the BDMV
     playlist counter that could cause one or more entries to be skipped
@@ -109,6 +110,23 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     (growisofs) at the default speed — no re-encoding or project required
 31. The Settings > Core tab is now scrollable and the command fields are wider,
     so all options stay reachable on smaller windows
+32. Version bumped to 3.3b8
+33. HD output is always authored at 1920x1080 with the NTSC/PAL standards
+    frame rate: film 23.976, 29.97/59.94 recordings 29.97, 25/50 sources 25.
+    The non-standard 720p50/60 AVCHD branch was removed (those 720p59.94
+    streams were rejected by the PS4 and standalone players), and the
+    Blu-ray/AVCHD ISO step now uses the bundled `udf250` UDF 2.50 builder and
+    excludes the tsMuxeR CERTIFICATE tree for AVCHD playback compatibility
+34. Version bumped to 3.3b9
+
+## Blu-ray / AVCHD playback status
+
+The disc authored by this build (1920x1080, standards-rate H.264/AC-3, UDF 2.50
+BDMV) plays fully on a standalone Blu-ray player and mounts/decodes cleanly in
+software. The Sony PlayStation 4 currently reports "unsupported disc" for AVCHD
+discs produced with 29.97 Hz video and for the original 720p59.94 output; the
+remaining suspected cause is the frame rate (the PS4-proven reference discs are
+authored at 1080p23.976), so a film-rate (23.976) encode is the next test.
 
 ## Bundled tools
 
@@ -116,7 +134,8 @@ The AppImage ships with its own copies of:
 
 * dvdauthor (spumux/dvdauthor) for DVD subtitle multiplexing and authoring
 * mjpegtools (mplex) for DVD multiplexing
-* mkisofs for DVD ISO and Blu-ray/AVCHD UDF ISO images
+* mkisofs for DVD-Video ISO images
+* udf250 (pure-Python UDF 2.50 builder) for Blu-ray/AVCHD ISO images
 * growisofs + dvd+rw-tools for burning
 * tsMuxeR for Blu-ray BDMV authoring
 * ffmpeg + ffprobe (with libx264) for transcoding
@@ -147,8 +166,8 @@ host:
 
 Grab the AppImage from the Releases page, make it executable, and run it:
 
-    chmod +x DVDStyler-3.3b7-x86_64.AppImage
-    ./DVDStyler-3.3b7-x86_64.AppImage
+    chmod +x DVDStyler-3.3b9-x86_64.AppImage
+    ./DVDStyler-3.3b9-x86_64.AppImage
 
 ## Build
 

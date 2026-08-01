@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${VERSION:-3.3b7}"
+VERSION="${VERSION:-3.3b9}"
 APPDIR="$ROOT/DVDStyler.AppDir"
 TOOLS="$ROOT/.appimage-tools"
 rm -rf "$APPDIR"
@@ -60,6 +60,16 @@ TSMUXER_ZIP="$TOOLS/tsMuxeR-$TSMUXER_VERSION-linux.zip"
 fetch "https://github.com/justdan96/tsMuxer/releases/download/$TSMUXER_VERSION/tsMuxer-$TSMUXER_VERSION-linux.zip" "$TSMUXER_ZIP"
 unzip -o -q "$TSMUXER_ZIP" -d "$APPDIR/usr/bin"
 chmod +x "$APPDIR/usr/bin/tsMuxeR"
+
+# ---------------------------------------------------------------------------
+# UDF 2.50 image builder (pure-Python, replaces mkisofs for the Blu-ray/AVCHD
+# ISO step; see src/Config.h DEF_BLURAY_ISO_CMD). The `udf250` wrapper is
+# found via PATH (AppRun adds usr/bin); it locates udf250.py itself and runs
+# it with python3, which must exist on the host (present by default on all
+# supported distros).
+# ---------------------------------------------------------------------------
+install -m 0755 packaging/udf250.py "$APPDIR/usr/bin/udf250.py"
+install -m 0755 packaging/udf250 "$APPDIR/usr/bin/udf250"
 
 # ---------------------------------------------------------------------------
 # Bundle every remaining host dependency that is legal to ship (everything

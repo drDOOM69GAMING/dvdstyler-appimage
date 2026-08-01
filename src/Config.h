@@ -103,12 +103,12 @@ const wxString DEF_SPUMUX_CMD    = _T("spumux -P -s $STREAM \"$FILE_CONF\"");
 const wxString DEF_DVDAUTHOR_CMD = _T("dvdauthor -o \"$DIR\" -x \"$FILE_CONF\"");
 const wxString DEF_ISO_CMD       = _T("mkisofs -V \"$VOL_ID\" -o \"$FILE\" -dvd-video \"$DIR\"");
 const wxString DEF_ISO_SIZE_CMD  = _T("mkisofs -quiet -print-size \"$DIR\"");
-// UDF 1.02 hybrid (ISO9660 + UDF): produced by mkisofs/cdrtools, works with
-// software players and most hardware players. Note: modern xorriso no longer
-// has UDF write support (removed from libisofs), so it cannot build UDF 2.50.
-// For strict UDF 2.50 (required by the Blu-ray/AVCHD specs) point this at a
-// UDF 2.50 capable tool, e.g. udfclient's "mkudfimage".
-const wxString DEF_BLURAY_ISO_CMD = _T("mkisofs -udf -iso-level 3 -V \"$VOL_ID\" -o \"$FILE\" \"$DIR\"");
+// UDF 2.50 (metadata partition, required by Blu-ray/AVCHD): produced by the
+// bundled pure-Python builder packaging/udf250.py (no mkisofs -udf, which can
+// only write UDF 1.02 and silently drops files larger than ~4 GB). The builder
+// streams file data and splits large files into multiple extents, so multi-GB
+// m2ts files are written correctly.
+const wxString DEF_BLURAY_ISO_CMD = _T("udf250 --exclude CERTIFICATE \"$DIR\" \"$FILE\" \"$VOL_ID\"");
 const wxString DEF_BLURAY_TSMUXER_CMD = _T("tsMuxeR");
 const int DEF_BLURAY_VIDEO_BITRATE = 25000; // Kbit/s
 const int DEF_BLURAY_AUDIO_BITRATE = 384; // Kbit/s

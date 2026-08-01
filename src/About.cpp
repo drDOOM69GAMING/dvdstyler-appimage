@@ -50,7 +50,7 @@ const wxString DOOMS_CHANGELOG = wxT(
 	"8. Blu-ray (BD-R/BD-RE) and AVCHD (DVD-R/RW) authoring: a new\n"
 	"   \"HD output\" mode in Settings > System core switches the pipeline\n"
 	"   to full 1080p H.264 encodes, authored to BDMV with tsMuxeR and\n"
-	"   packaged as a UDF 2.50 ISO (mkisofs). AVCHD uses Blu-ray High@4.0\n"
+	"   packaged as a UDF 2.50 ISO (bundled pure-Python builder). AVCHD uses Blu-ray High@4.0\n"
 	"   constraints with a 1s GOP and 18 Mbit/s max rate so it fits on\n"
 	"   DVD media (high-fps sources become 720p50/60); Blu-ray uses\n"
 	"   High@4.1 with a 2s GOP and 40 Mbit/s max rate.\n\n"
@@ -82,6 +82,14 @@ const wxString DOOMS_CHANGELOG = wxT(
 	"18. Encoding progress bar fixed: it now parses modern ffmpeg output\n"
 	"    (frame=NNN with no space) so progress advances during encoding.\n\n"
 	"19. Version bumped to 3.3b7.\n"
+	"20. Genuine UDF 2.50 AVCHD/Blu-ray ISOs (udf250 builder); excludes the\n"
+	"    tsMuxeR CERTIFICATE tree for AVCHD playback compatibility.\n"
+	"21. Version bumped to 3.3b8.\n"
+	"22. HD output always authored at 1920x1080 with the NTSC/PAL standards\n"
+	"    frame rate (film 23.976, 29.97/59.94 recordings 29.97, 25/50 25);\n"
+	"    removed the non-standard 720p50/60 AVCHD branch that PS4 and\n"
+	"    standalone players rejected.\n"
+	"23. Version bumped to 3.3b9.\n"
 );
 
 About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,

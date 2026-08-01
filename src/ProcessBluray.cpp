@@ -86,10 +86,11 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	// frame rate
 	bool avchd = s_config.Disc.GetMode() == BD_MODE_AVCHD;
 	double srcFps = vob->GetVideoStream() ? vob->GetVideoStream()->GetSourceFps() : 0;
+	// NTSC/PAL standards rate for all HD output: film -> 23.976, 29.97/59.94
+	// recordings -> 29.97, 25/50 -> 25. The former 720p50/60 AVCHD branch
+	// produced non-standard 720p59.94 streams that PS4 and standalone players
+	// rejected, so high-fps sources are frame-converted instead.
 	fps = GetBdFps(srcFps);
-	// AVCHD: keep 50/60 fps sources smooth as 720p50/60 (AVCHD 2.0)
-	if (avchd && srcFps > 45.0)
-		fps = srcFps > 55.0 ? 60000.0 / 1001.0 : 50.0;
 	// settings model -> pipeline planner: resolve the coherent encoder profile
 	HdProfile::Params profile = HdProfile::Resolve(avchd ? HdProfile::MODE_AVCHD : HdProfile::MODE_BLURAY,
 			(HdProfile::Quality) s_config.Video.GetHdQuality(), videoBitrate);
@@ -110,14 +111,11 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 		cmd += wxString::Format(wxT(" -ss %g"), vob->GetStartTime());
 	cmd += wxT(" -i \"") + vob->GetFilename() + wxT("\"");
 
-	// AVCHD is Blu-ray constrained to DVD media (High@4.0, max GOP 1 s,
-	// max 18 Mbit/s). High-fps sources are encoded as 720p50/60.
+	// All HD output is authored at 1920x1080 (AVCHD and Blu-ray alike) with the
+	// standards frame rate from GetBdFps. AVCHD stays Blu-ray-constrained to
+	// DVD media (High@4.0, max GOP 1 s, max 18 Mbit/s).
 	int width = 1920;
 	int height = 1080;
-	if (avchd && fps > 45.0) {
-		width = 1280;
-		height = 720;
-	}
 
 	// video: scale to the target resolution keeping aspect ratio, pad to fill
 	// the frame. HD content must be BT.709; upscaled SD content is converted

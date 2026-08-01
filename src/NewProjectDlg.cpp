@@ -134,7 +134,7 @@ bool NewProjectDlg::SetValues() {
 void NewProjectDlg::UpdateResolutionIcon(int sel) {
 	if (s_config.Disc.GetMode() != BD_MODE_NONE) {
 		UpdateIcon(0, _("Info"),
-				_("Blu-ray/AVCHD output ignores this setting: titles are always authored\nat 1920x1080 (or 1280x720 for high-fps AVCHD sources)."),
+				_("Blu-ray/AVCHD output ignores this setting: titles are always authored\nat 1920x1080 with the NTSC/PAL standards frame rate (film 23.976,\n29.97/59.94 sources 29.97, 25/50 sources 25)."),
 				wxART_INFORMATION);
 	} else {
 		UpdateIcon(0, sel > 0 ? _("Warning") : _("Info"),

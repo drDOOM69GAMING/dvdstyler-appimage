@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Wrapper for the bundled UDF 2.50 builder (packaging/udf250.py). Resolved via
+# PATH by DVDStyler's "Blu-ray ISO command" (see DEF_BLURAY_ISO_CMD in
+# src/Config.h); the script path is derived from this file's location, so it
+# works regardless of the current working directory. Requires python3.
+set -e
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "udf250: python3 not found in PATH" >&2
+    exit 1
+fi
+exec python3 "$HERE/udf250.py" "$@"
