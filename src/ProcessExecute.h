@@ -102,7 +102,7 @@ protected:
 class AVConvExecute: public ProcessExecute {
 public:
 	AVConvExecute(ProgressDlg* progressDlg, long totalFrames): ProcessExecute(progressDlg), m_percent(0),
-			m_pattern(wxT("frame=[[:space:]]+([0-9]+).*")) {
+			m_pattern(wxT("frame=[[:space:]]*([0-9]+).*")) {
 		m_initSubStep = m_progressDlg->GetSubStep();
 		m_totalFrames = totalFrames;
 	}

@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${VERSION:-3.3b6}"
+VERSION="${VERSION:-3.3b7}"
 APPDIR="$ROOT/DVDStyler.AppDir"
 TOOLS="$ROOT/.appimage-tools"
 rm -rf "$APPDIR"

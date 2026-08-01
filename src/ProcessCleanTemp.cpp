@@ -12,6 +12,7 @@
 #include <wx/file.h>
 #include <wx/dir.h>
 #include <wx/log.h>
+#include <wx/arrstr.h>
 
 /** Constructor */
 ProcessCleanTemp::ProcessCleanTemp(ProgressDlg* progressDlg, const wxString& tmpDir, const wxString& dvdTmpDir,
@@ -59,11 +60,19 @@ bool ProcessCleanTemp::DeleteDir(wxString dir) {
 		dir += wxFILE_SEP_PATH;
 	wxDir d(dir);
 	if (d.IsOpened()) {
+		wxArrayString entries;
 		wxString fname;
-		while (d.GetFirst(&fname, wxEmptyString, wxDIR_FILES | wxDIR_HIDDEN))
-			if (!DeleteFile(dir + fname))
-				return false;
+		while (d.GetFirst(&fname, wxEmptyString, wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN))
+			entries.Add(dir + fname);
 		d.Close();
+		for (unsigned int i = 0; i < entries.Count(); i++) {
+			if (wxDirExists(entries[i])) {
+				if (!DeleteDir(entries[i]))
+					return false;
+			} else if (!DeleteFile(entries[i])) {
+				return false;
+			}
+		}
 		wxLogNull log;
 		wxRmdir(dir);
 	}
@@ -81,6 +90,12 @@ bool ProcessCleanTemp::DeleteTempFiles(bool deleteOutDir) {
 			return false;
 		}
 		if (!DeleteDir(dvdOutDir + wxT("AUDIO_TS"))) {
+			return false;
+		}
+		if (!DeleteDir(dvdOutDir + wxT("BDMV"))) {
+			return false;
+		}
+		if (!DeleteDir(dvdOutDir + wxT("CERTIFICATE"))) {
 			return false;
 		}
 		if (!wxRmdir(dvdOutDir)) {

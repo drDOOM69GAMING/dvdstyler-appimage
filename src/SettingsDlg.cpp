@@ -282,6 +282,8 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	AddSpinProp(coreGrid, wxT(""), s_config.GetThreadCount(def), 1, 99, 80, wxT(""), false);
 	AddText(coreGrid, _("Use hardware video decoding (VA-API)"));
 	AddCheckProp(coreGrid, wxT(""), s_config.GetUseVAAPI(def));
+	AddText(coreGrid, _("Use hardware video encoding (VA-API)"));
+	AddCheckProp(coreGrid, wxT(""), s_config.GetUseVAAPIEncode(def));
 	AddText(coreGrid, _("DVD reserved space:"));
 	AddSpinProp(coreGrid, wxT(""), s_config.GetDvdReservedSpace(def), 0, 9999999, 80, _("KB"), false);
 	
@@ -447,6 +449,7 @@ bool SettingsDlg::SetValues() {
 	s_config.SetAudioBitrate(GetInt(i++));
 	s_config.SetThreadCount(GetInt(i++));
 	s_config.SetUseVAAPI(GetBool(i++));
+	s_config.SetUseVAAPIEncode(GetBool(i++));
 	s_config.SetDvdReservedSpace(GetInt(i++));
 	wxString encoder = GetInt(i++) > 0 ? GetString(i - 1) : wxT("");
 	s_config.SetEncoder(encoder);

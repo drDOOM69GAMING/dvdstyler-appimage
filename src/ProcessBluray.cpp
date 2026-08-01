@@ -99,7 +99,12 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	// build ffmpeg command
 	wxString cmd = s_config.GetAVConvCmd();
 	cmd += wxT(" -y");
-	if (s_config.GetUseVAAPI()) {
+	// VA-API: decode on the GPU always when enabled; encode on the GPU too when
+	// the user opted in (h264_vaapi is faster but not strictly Blu-ray compliant)
+	bool useVaapiEncode = s_config.GetUseVAAPI() && s_config.GetUseVAAPIEncode();
+	if (useVaapiEncode) {
+		cmd += wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128 -hwaccel vaapi -hwaccel_device va -hwaccel_output_format vaapi");
+	} else if (s_config.GetUseVAAPI()) {
 		cmd += wxT(" -hwaccel vaapi -hwaccel_output_format yuv420p");
 	}
 	if (vob->GetStartTime() != 0)
@@ -118,21 +123,36 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	// video: scale to the target resolution keeping aspect ratio, pad to fill
 	// the frame. HD content must be BT.709; upscaled SD content is converted
 	// from BT.601 so colors stay correct on standalone players.
-	wxString vf = wxString::Format(
-			wxT("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2"), width, height, width, height);
-	Stream* videoStream = vob->GetVideoStream();
-	if (videoStream && videoStream->GetSourceVideoSize().GetHeight() > 0
-			&& videoStream->GetSourceVideoSize().GetHeight() <= 576)
-		vf = wxT("colormatrix=bt601:bt709,") + vf;
-	vf += wxT(",format=yuv420p");
+	wxString vf;
+	if (useVaapiEncode) {
+		vf = wxString::Format(
+				wxT("scale_vaapi=%d:%d:force_original_aspect_ratio=decrease,pad_vaapi=%d:%d:(ow-iw)/2:(oh-ih)/2"), width, height, width, height);
+	} else {
+		vf = wxString::Format(
+				wxT("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2"), width, height, width, height);
+		Stream* videoStream = vob->GetVideoStream();
+		if (videoStream && videoStream->GetSourceVideoSize().GetHeight() > 0
+				&& videoStream->GetSourceVideoSize().GetHeight() <= 576)
+			vf = wxT("colormatrix=bt601:bt709,") + vf;
+		vf += wxT(",format=yuv420p");
+	}
 	cmd += wxT(" -vf \"") + vf + wxT("\"");
 	cmd += wxT(" -r ") + GetFpsStr(fps);
 	cmd += wxT(" -map 0:v:0");
-	cmd += wxT(" -c:v libx264 -profile:v high -level ") + profile.GetLevelStr() + wxT(" -preset medium -pix_fmt yuv420p");
-	cmd += wxT(" -colorspace bt709 -color_primaries bt709 -color_trc bt709");
-	cmd += wxString::Format(wxT(" -b:v %dk -maxrate %dk -bufsize %dk"), videoBitrate, profile.maxrateKbps, profile.bufsizeKbps);
-	cmd += wxString::Format(wxT(" -g %d -keyint_min %d -sc_threshold 0 -bf %d -refs %d"), gop, gop / 2, profile.bframes, profile.refs);
-	cmd += wxString::Format(wxT(" -x264opts bluray_compat=%d:slices=%d"), profile.blurayCompat ? 1 : 0, profile.slices);
+	if (useVaapiEncode) {
+		// GPU encode: no bluray_compat/slices support in h264_vaapi, so these
+		// Blu-ray compliance options are intentionally omitted.
+		cmd += wxT(" -c:v h264_vaapi -profile:v high -level ") + profile.GetLevelStr();
+		cmd += wxT(" -colorspace bt709 -color_primaries bt709 -color_trc bt709");
+		cmd += wxString::Format(wxT(" -b:v %dk -maxrate %dk -bufsize %dk"), videoBitrate, profile.maxrateKbps, profile.bufsizeKbps);
+		cmd += wxString::Format(wxT(" -g %d -bf %d -refs %d"), gop, profile.bframes, profile.refs);
+	} else {
+		cmd += wxT(" -c:v libx264 -profile:v high -level ") + profile.GetLevelStr() + wxT(" -preset medium -pix_fmt yuv420p");
+		cmd += wxT(" -colorspace bt709 -color_primaries bt709 -color_trc bt709");
+		cmd += wxString::Format(wxT(" -b:v %dk -maxrate %dk -bufsize %dk"), videoBitrate, profile.maxrateKbps, profile.bufsizeKbps);
+		cmd += wxString::Format(wxT(" -g %d -keyint_min %d -sc_threshold 0 -bf %d -refs %d"), gop, gop / 2, profile.bframes, profile.refs);
+		cmd += wxString::Format(wxT(" -x264opts bluray_compat=%d:slices=%d"), profile.blurayCompat ? 1 : 0, profile.slices);
+	}
 	// chapters force key frames (offset to the trimmed timeline)
 	chapterList.Clear();
 	for (unsigned int i = 0; i < vob->GetCells().size(); i++) {

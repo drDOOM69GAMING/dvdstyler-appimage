@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/build.yml/badge.svg)](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/build.yml)
 
 A custom build of DVDStyler packaged as a portable AppImage for Linux.
-Based on DVDStyler 3.3b4 with improvements, released here as version 3.3b6.
+Based on DVDStyler 3.3b4 with improvements, released here as version 3.3b7.
 
 ## What is this
 
@@ -65,6 +65,23 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     (fontconfig, freetype, fribidi, zlib, libstdc++, libgcc) that
     linuxdeploy normally skips, so it runs on more distributions
 
+## Changes in version 3.3b7
+
+21. VA-API hardware video **encoding** (h264_vaapi) added as an optional
+    toggle in Settings > Generate ("Use hardware video encoding (VA-API)").
+    Faster than the CPU x264 encode on capable GPUs, but not strictly
+    Blu-ray compliant, so it is disabled by default. Hardware video
+    decoding (VA-API) remains automatic when a render node is present
+22. Encoding progress bar fixed: it now parses modern ffmpeg output
+    (`frame=NNN` without a space), so progress advances during encoding
+    instead of staying frozen
+23. Fixed authoring failure on re-runs: the build output directory was
+    cleaned but a leftover BDMV/CERTIFICATE from a previous run was not
+    removed, so tsMuxeR overwrote the same playlist file and the authoring
+    step reported "did not add a playlist" — BDMV and CERTIFICATE are now
+    deleted (recursively) before a fresh authoring run
+24. Version bumped from 3.3b6 to 3.3b7
+
 ## Bundled tools
 
 The AppImage ships with its own copies of:
@@ -102,8 +119,8 @@ host:
 
 Grab the AppImage from the Releases page, make it executable, and run it:
 
-    chmod +x DVDStyler-3.3b6-x86_64.AppImage
-    ./DVDStyler-3.3b6-x86_64.AppImage
+    chmod +x DVDStyler-3.3b7-x86_64.AppImage
+    ./DVDStyler-3.3b7-x86_64.AppImage
 
 ## Build
 
