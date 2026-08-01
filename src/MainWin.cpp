@@ -31,7 +31,13 @@
 #include <wx/msgdlg.h>
 #include <wx/stdpaths.h>
 #include <wx/progdlg.h>
+#include <wx/dir.h>
 #include "math.h"
+
+#ifndef __WXMSW__
+#include <unistd.h>
+#include <signal.h>
+#endif
 
 #ifdef __WXMSW__
 #include <wx/msw/registry.h>
@@ -93,6 +99,7 @@ BEGIN_EVENT_TABLE(MainWin, wxFrame)
     EVT_MENU(wxID_SAVE, MainWin::OnSave)
     EVT_MENU(wxID_SAVEAS, MainWin::OnSaveAs)
     EVT_MENU(MENU_BURN_ID, MainWin::OnBurn)
+    EVT_MENU(MENU_BURN_ISO_ID, MainWin::OnBurnIso)
     EVT_MENU(wxID_EXIT, MainWin::OnExit)
     EVT_MENU(wxID_UNDO, MainWin::OnUndo)
     EVT_MENU(wxID_REDO, MainWin::OnRedo)
@@ -173,6 +180,7 @@ MainWin::MainWin(): wxFrame(NULL, -1, _T(""), wxDefaultPosition, wxDefaultSize,
     wxMenuItem* item = new wxMenuItem(wxglade_tmp_menu_1, MENU_BURN_ID, _("&Burn DVD...\tF9"), wxEmptyString, wxITEM_NORMAL);
     item->SetBitmap(wxBITMAP_FROM_MEMORY(run));
     wxglade_tmp_menu_1->Append(item);
+    wxglade_tmp_menu_1->Append(MENU_BURN_ISO_ID, _("Burn &ISO..."), wxEmptyString, wxITEM_NORMAL);
     wxglade_tmp_menu_1->UpdateUI();
     wxglade_tmp_menu_1->AppendSeparator();
     wxglade_tmp_menu_1->Append(wxID_EXIT, _("&Exit\tAlt-X"), wxEmptyString, wxITEM_NORMAL);
@@ -729,10 +737,61 @@ void MainWin::OnClose(wxCloseEvent &event) {
 		event.Veto();
 		return;
 	}
+	// suppress wxFile seek/length warnings emitted while tearing down
+	// (harmless: file descriptors are closed pipes during shutdown)
+	wxLogNull log;
 	m_cache.ShowClearPrompt(this);
 	if (!IsIconized())
 		s_config.SetMainWinLocation(GetRect(), IsMaximized());
+	KillChildProcesses();
 	Destroy();
+}
+
+/** Kills any child processes (e.g. ffmpeg) left running by this app, so they
+  * don't linger after the window is closed. */
+void MainWin::KillChildProcesses() {
+#ifdef __WXMSW__
+	// no-op on Windows: child processes are tracked by the progress dialog
+#else
+	pid_t pid = getpid();
+	wxDir dir(wxT("/proc"));
+	wxString name;
+	if (dir.IsOpened()) {
+		for (bool has = dir.GetFirst(&name, wxEmptyString, wxDIR_DIRS); has; has = dir.GetNext(&name)) {
+			long childPid = 0;
+			if (!name.ToLong(&childPid) || childPid <= 0)
+				continue;
+			wxString statFile = wxString::Format(wxT("/proc/%ld/stat"), childPid);
+			wxTextFile stat;
+			if (stat.Open(statFile)) {
+				wxString line = stat.GetFirstLine();
+				stat.Close();
+				// find parent pid: the ppid is the 4th whitespace-separated field
+				wxArrayString fields = wxSplit(line, wxT(' '));
+				long ppid = 0;
+				if (fields.Count() > 3 && fields[3].ToLong(&ppid) && ppid == (long) pid) {
+					wxString cmdFile = wxString::Format(wxT("/proc/%ld/comm"), childPid);
+					wxString cmd;
+					if (wxFile::Exists(cmdFile)) {
+						wxFile f(cmdFile);
+						if (f.IsOpened()) {
+							f.ReadAll(&cmd);
+							f.Close();
+						}
+					}
+					cmd.Trim();
+					if (cmd == wxT("ffmpeg") || cmd == wxT("ffprobe") || cmd == wxT("avconv")
+							|| cmd == wxT("dvdauthor") || cmd == wxT("spumux") || cmd == wxT("mplex")
+							|| cmd == wxT("mkisofs") || cmd == wxT("growisofs") || cmd == wxT("tsMuxeR")
+							|| cmd == wxT("genisoimage") || cmd == wxT("dvd+rw-mediainfo")
+							|| cmd == wxT("dvd+rw-format")) {
+						::kill(childPid, SIGKILL);
+					}
+				}
+			}
+		}
+	}
+#endif
 }
 
 void MainWin::NewDVD(wxString templateFile, wxString discTitle, wxString discLabel, DvdResolution dvdResolution,
@@ -1086,6 +1145,18 @@ void MainWin::OnSaveAs(wxCommandEvent& event) {
  */
 void MainWin::OnBurn(wxCommandEvent& event) {
 	Burn(false);
+}
+/**
+ * Burns an existing ISO image directly with the default tool at default speed.
+ */
+void MainWin::OnBurnIso(wxCommandEvent& event) {
+	wxFileDialog dlg(this, _("Select an ISO image"), wxEmptyString, wxEmptyString,
+			_("ISO images (*.iso)|*.iso"), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+	if (dlg.ShowModal() != wxID_OK)
+		return;
+	wxString isoFile = dlg.GetPath();
+	ProgressDlg progressDlg(this, &m_cache, false);
+	progressDlg.BurnIso(isoFile);
 }
 /**
  * Opens the burn dialog

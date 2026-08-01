@@ -40,6 +40,7 @@ private:
 	int m_hdModeGroupIdx;
 	wxChoice* qualityCtrl;
 	wxChoice* mediaSizeCtrl;
+	wxCheckBox* autoBitrateCtrl;
 	wxSpinCtrl* bdBitrateCtrl;
 	wxSpinCtrl* avchdBitrateCtrl;
 	wxSpinCtrl* audioBitrateCtrl;
@@ -50,6 +51,7 @@ private:
 	void OnClearCache(wxCommandEvent& evt);
 	void OnChangeEncoderMode(wxCommandEvent& evt);
 	void OnChangeHdMode(wxCommandEvent& evt);
+	void OnChangeAutoBitrate(wxCommandEvent& evt);
 	void UpdateHdControls();
 	void OnCheckHQ(wxCommandEvent& evt);
 	void OnCheckXHQ(wxCommandEvent& evt);

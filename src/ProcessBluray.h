@@ -49,11 +49,18 @@ private:
 	static int GetGopSize(double fps, int seconds);
 
 	/** Logs an estimated output size and warns if the content cannot fit the media */
-	void CheckCapacity(int vobCount);
+	void CheckCapacity(int vobCount, int videoBitrate, int audioBitrate);
+
+	/** Returns the video bitrate to use, auto-fitted to the selected media size
+	 *  when auto-fit is enabled, clamped to the mode's spec bounds. */
+	int GetVideoBitrate(bool avchd, double totalSeconds);
+
+	/** Returns the total duration of all titles in seconds. */
+	double GetTotalSeconds();
 
 	/** Encodes one title to H.264 elementary stream and AC-3 audio */
-	bool EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir, wxString& videoFile, wxString& audioFile,
-			double& fps, wxString& chapterList);
+	bool EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir, int videoBitrate, int audioBitrate,
+			wxString& videoFile, wxString& audioFile, double& fps, wxString& chapterList);
 
 	/** Generates a tsMuxeR meta file for one title */
 	bool SaveTsMuxeRMeta(const wxString& metaFile, const wxString& videoFile, const wxString& audioFile, double fps,

@@ -39,6 +39,8 @@ public:
 	
 	/** starts the generating of DVD */
 	bool Start(BurnDlg* burnDlg, DVD* dvd);
+	/** burns the given ISO image directly with the default tool at default speed */
+	bool BurnIso(const wxString& isoFile);
     /** Returns true, if process is canceled */
 	bool WasCanceled();
     /** Cancel the process */

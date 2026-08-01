@@ -82,6 +82,34 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     deleted (recursively) before a fresh authoring run
 24. Version bumped from 3.3b6 to 3.3b7
 
+## Later changes in this build
+
+25. HD auto-bitrate: a new "Auto video bitrate (fit to media size)" checkbox
+    in Settings > Core (default on) computes the video bitrate so the output
+    fills the selected media size (DVD-5/DVD-9 for AVCHD, BD-R for Blu-ray)
+    instead of using a fixed bitrate. No more "over sized" warnings unless the
+    content physically cannot fit at the minimum bitrate; the AVCHD/Blu-ray
+    bitrate spinners are disabled while auto-fit is on
+26. The Blu-ray/AVCHD ISO is now built with `mkisofs -udf -iso-level 3`, which
+    produces a UDF 1.02 hybrid image (ISO9660 + UDF) that works with software
+    players and most hardware players
+27. Fixed directory iteration bugs (wxDir::GetFirst/GetNext misuse) in the
+    cache cleaner, temp-dir cleaner, DVD filesystem cleanup and the BDMV
+    playlist counter that could cause one or more entries to be skipped
+28. Child processes (ffmpeg, dvdauthor, mkisofs, growisofs, tsMuxeR, etc.)
+    left running by the app are killed when the window is closed, so they do
+    not linger after exit
+29. The FFmpeg/libavformat "can't seek on file descriptor / can't find length
+    of file on file descriptor" lines that flooded the log when probing
+    non-seekable streams are filtered out, and the harmless wxFile
+    seek/length warnings emitted during shutdown are suppressed, so closing
+    the app no longer spams the console
+30. New **File > Burn ISO...** menu item: pick an existing ISO image and it is
+    burned straight to the configured drive with the default burn tool
+    (growisofs) at the default speed — no re-encoding or project required
+31. The Settings > Core tab is now scrollable and the command fields are wider,
+    so all options stay reachable on smaller windows
+
 ## Bundled tools
 
 The AppImage ships with its own copies of:

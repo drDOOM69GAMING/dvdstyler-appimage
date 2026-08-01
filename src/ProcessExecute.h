@@ -27,6 +27,11 @@ public:
 	}
 	
 	virtual void ProcessOutput(wxString line) {
+		// libavformat emits these when it probes a non-seekable stream
+		// (e.g. a pipe). They are harmless and would flood the log.
+		if (line.Find(wxT("can't seek on file descriptor")) >= 0
+				|| line.Find(wxT("can't find length of file on file descriptor")) >= 0)
+			return;
 		m_progressDlg->AddDetailText(line + _T("\n"));
 	}
 
@@ -96,6 +101,26 @@ protected:
     wxRegEx m_filterPattern;
 	int     m_initSubStep;
 	int     m_percent;
+};
+
+class BurnExecute: public ProgressExecute {
+public:
+	BurnExecute(ProgressDlg* process, wxString filter): ProgressExecute(process, filter), m_burnOk(false) {}
+
+	virtual void ProcessOutput(wxString line) {
+		if (line.Find(wxT(": writing lead-out")) >= 0)
+			m_burnOk = true;
+		ProgressExecute::ProcessOutput(line);
+	}
+
+	bool Execute(wxString command, wxString inputFile = wxEmptyString, wxString outputFile = wxEmptyString) {
+		m_burnOk = false;
+		bool res = ProgressExecute::Execute(command, wxEmptyString, wxEmptyString);
+		return res || m_burnOk;
+	}
+
+private:
+	bool m_burnOk;
 };
 
 

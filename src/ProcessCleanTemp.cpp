@@ -62,7 +62,8 @@ bool ProcessCleanTemp::DeleteDir(wxString dir) {
 	if (d.IsOpened()) {
 		wxArrayString entries;
 		wxString fname;
-		while (d.GetFirst(&fname, wxEmptyString, wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN))
+		for (bool hasEntry = d.GetFirst(&fname, wxEmptyString, wxDIR_FILES | wxDIR_DIRS | wxDIR_HIDDEN); hasEntry;
+				hasEntry = d.GetNext(&fname))
 			entries.Add(dir + fname);
 		d.Close();
 		for (unsigned int i = 0; i < entries.Count(); i++) {

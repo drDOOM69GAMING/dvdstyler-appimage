@@ -17,26 +17,6 @@
 #include <wxVillaLib/utils.h>
 #include <wx/msgdlg.h>
 
-class BurnExecute: public ProgressExecute {
-public:
-	BurnExecute(ProgressDlg* process, wxString filter): ProgressExecute(process, filter), m_burnOk(false) {}
-
-	virtual void ProcessOutput(wxString line) {
-		if (line.Find(wxT(": writing lead-out")) >= 0)
-			m_burnOk = true;
-		ProgressExecute::ProcessOutput(line);
-	}
-
-	bool Execute(wxString command, wxString inputFile = wxEmptyString, wxString outputFile = wxEmptyString) {
-		m_burnOk = false;
-		bool res = ProgressExecute::Execute(command, wxEmptyString, wxEmptyString);
-		return res || m_burnOk;
-	}
-
-private:
-	bool m_burnOk;
-};
-
 /** Constructor */
 ProcessBurn::ProcessBurn(ProgressDlg* progressDlg, BurnDlg* burnDlg, DVD* dvd, const wxString& dvdOutDir,
 		const wxString& tmpDir): Process(progressDlg) {

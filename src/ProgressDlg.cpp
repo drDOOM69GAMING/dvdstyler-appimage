@@ -33,6 +33,9 @@
 #include "Version.h"
 #include <wxVillaLib/utils.h>
 #include <wx/filename.h>
+#include "ProcessExecute.h"
+#include <wx/file.h>
+#include <wx/msgdlg.h>
 
 //(*InternalHeaders(ProgressDlg)
 #include <wx/intl.h>
@@ -320,6 +323,68 @@ bool ProgressDlg::Start(BurnDlg* burnDlg, DVD* dvd) {
     }
 	wxDELETE(m_winDisabler);
 	return !m_cancel;
+}
+
+bool ProgressDlg::BurnIso(const wxString& isoFile) {
+	// check if the ISO file exists
+	if (!wxFileExists(isoFile)) {
+		wxMessageBox(wxString::Format(_("File '%s' does not exist."), isoFile.c_str()), _("Burn ISO"),
+				wxOK|wxICON_ERROR, this);
+		return false;
+	}
+	// disable parent window
+	m_winDisabler = new wxWindowDisabler(this);
+	// show dialog
+	Show();
+	// set log target
+	wxLog* previousLog = wxLog::SetActiveTarget(new ProcessLog(this));
+	// open log file
+	wxString tmpDir = s_config.GetTempDir();
+	if (tmpDir.Last() != wxFILE_SEP_PATH)
+		tmpDir += wxFILE_SEP_PATH;
+	m_logFile.Open(tmpDir + wxT("dvdstyler.log"), wxT("w"));
+	// print version
+	AddDetailMsg(wxT("DVDStyler v") + APP_VERSION);
+	AddDetailMsg(wxGetOsDescription());
+	// burn
+	SetSteps(1);
+	SetSubSteps(100);
+	AddSummaryMsg(_("Burning"));
+	wxString device = s_config.GetBurnDevice();
+	if (device.length() == 0)
+		device = DEF_BURN_DEVICE;
+	wxString cmd = s_config.GetBurnISOCmd();
+	cmd.Replace(_T("$FILE"), isoFile);
+	long size = wxFile(isoFile).Length() / 2048; // size in 2048 blocks
+	cmd.Replace(_T("$SIZE"), wxString::Format(wxT("%ld"), size));
+	cmd.Replace(_T("$DEV"), device);
+	wxString speedStr;
+	if (s_config.GetBurnSpeed() > 0) {
+		speedStr = s_config.GetBurnSpeedOpt();
+		speedStr.Replace(_T("$SPEED"), wxString::Format(_T("%d"), s_config.GetBurnSpeed()));
+	}
+	cmd.Replace(_T("$SPEEDSTR"), speedStr);
+	BurnExecute exec(this, wxT(".*"));
+	bool res = exec.Execute(cmd);
+	if (res) {
+		IncStep();
+		AddSummaryMsg(_("Burning was successful."), wxEmptyString, wxColour(0, 128, 0));
+	} else {
+		Failed();
+	}
+	// end
+	End();
+	m_logFile.Close();
+	// restore log
+	delete wxLog::SetActiveTarget(previousLog);
+	m_end = true;
+	// wait for close
+	while (!m_close) {
+		wxMilliSleep(100);
+		wxYield();
+	}
+	wxDELETE(m_winDisabler);
+	return res;
 }
 
 void ProgressDlg::Run(BurnDlg* burnDlg, DVD* dvd) {

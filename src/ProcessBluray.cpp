@@ -73,8 +73,8 @@ int ProcessBluray::GetGopSize(double fps, int seconds) {
 }
 
 /** Encodes one title to H.264 elementary stream and AC-3 audio */
-bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir, wxString& videoFile,
-		wxString& audioFile, double& fps, wxString& chapterList) {
+bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir, int videoBitrate, int audioBitrate,
+		wxString& videoFile, wxString& audioFile, double& fps, wxString& chapterList) {
 	if (progressDlg->WasCanceled())
 		return false;
 	progressDlg->AddDetailMsg(wxString::Format(_("Transcode video %d to Blu-ray H.264"), titleIdx + 1));
@@ -91,7 +91,6 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	if (avchd && srcFps > 45.0)
 		fps = srcFps > 55.0 ? 60000.0 / 1001.0 : 50.0;
 	// settings model -> pipeline planner: resolve the coherent encoder profile
-	int videoBitrate = avchd ? s_config.Disc.GetAvchdVideoBitrate() : s_config.Disc.GetBlurayVideoBitrate();
 	HdProfile::Params profile = HdProfile::Resolve(avchd ? HdProfile::MODE_AVCHD : HdProfile::MODE_BLURAY,
 			(HdProfile::Quality) s_config.Video.GetHdQuality(), videoBitrate);
 	int gop = GetGopSize(fps, profile.gopSeconds);
@@ -182,7 +181,7 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 		if (stream && stream->GetSourceChannelNumber() >= 6)
 			channels = 6;
 		cmd += wxT(" -map 0:a:0 -c:a ac3");
-		cmd += wxString::Format(wxT(" -b:a %dk -ar 48000 -ac %d"), s_config.Disc.GetAudioBitrate(), channels);
+		cmd += wxString::Format(wxT(" -b:a %dk -ar 48000 -ac %d"), audioBitrate, channels);
 		// timestamp repair: keep A/V in sync on drifting sources
 		cmd += wxT(" -af aresample=async=1000:first_pts=0");
 		if (vob->GetRecordingTime() > 0)
@@ -249,7 +248,7 @@ int ProcessBluray::CountPlaylists(const wxString& bdmvRoot) {
 	wxDir d(dir);
 	wxString file;
 	int count = 0;
-	while (d.GetNext(&file)) {
+	for (bool hasEntry = d.GetFirst(&file, wxEmptyString, wxDIR_FILES); hasEntry; hasEntry = d.GetNext(&file)) {
 		if (file.Find(wxT(".mpls")) != wxNOT_FOUND)
 			count++;
 	}
@@ -283,15 +282,24 @@ bool ProcessBluray::AuthorBdmv(const wxString& metaFile, const wxString& bdmvRoo
 }
 
 /** Logs an estimated output size and warns if the content cannot fit the media */
-void ProcessBluray::CheckCapacity(int vobCount) {
+void ProcessBluray::CheckCapacity(int vobCount, int videoBitrate, int audioBitrate) {
 	if (vobCount <= 0)
 		return;
 	HdProfile::Mode mode = (HdProfile::Mode) s_config.Disc.GetMode();
-	bool avchd = mode == HdProfile::MODE_AVCHD;
-	int videoBitrate = avchd ? s_config.Disc.GetAvchdVideoBitrate() : s_config.Disc.GetBlurayVideoBitrate();
-	int audioBitrate = s_config.Disc.GetAudioBitrate();
 	HdProfile::MediaSize mediaSize = (HdProfile::MediaSize) s_config.Disc.GetMediaSize();
 	double capacityGB = HdProfile::MediaSizeGB(mediaSize);
+	double totalSeconds = GetTotalSeconds();
+	double estBytes = HdProfile::EstimateBytes(totalSeconds, videoBitrate, audioBitrate);
+	progressDlg->AddSummaryMsg(wxString::Format(
+			_("Estimated output size: %.2f GB for %.0f minutes of video."), estBytes / 1.0e9, totalSeconds / 60.0));
+	if (estBytes > HdProfile::MediaSizeBytes(mediaSize))
+		progressDlg->AddSummaryMsg(
+				wxString::Format(_("Warning: the estimated output size exceeds the %.1f GB media capacity. "
+						"Reduce the video bitrate or the duration."), capacityGB), wxEmptyString, *wxRED);
+}
+
+/** Returns the total duration of all titles in seconds. */
+double ProcessBluray::GetTotalSeconds() {
 	double totalSeconds = 0;
 	for (int tsi = 0; tsi < (int) dvd->GetTitlesets().Count(); tsi++) {
 		Titleset* ts = dvd->GetTitlesets()[tsi];
@@ -301,13 +309,32 @@ void ProcessBluray::CheckCapacity(int vobCount) {
 				totalSeconds += pgc->GetVobs()[vobi]->GetDuration();
 		}
 	}
-	double estBytes = HdProfile::EstimateBytes(totalSeconds, videoBitrate, audioBitrate);
-	progressDlg->AddSummaryMsg(wxString::Format(
-			_("Estimated output size: %.2f GB for %.0f minutes of video."), estBytes / 1.0e9, totalSeconds / 60.0));
-	if (estBytes > HdProfile::MediaSizeBytes(mediaSize))
-		progressDlg->AddSummaryMsg(
-				wxString::Format(_("Warning: the estimated output size exceeds the %.1f GB media capacity. "
-						"Reduce the video bitrate or the duration."), capacityGB), wxEmptyString, *wxRED);
+	return totalSeconds;
+}
+
+/** Returns the video bitrate to use. When auto-fit is enabled, computes a
+ *  bitrate that fills the selected media size (minus audio and a small muxing
+ *  overhead), clamped to the mode's spec bounds. Otherwise returns the
+ *  configured bitrate. */
+int ProcessBluray::GetVideoBitrate(bool avchd, double totalSeconds) {
+	HdProfile::Mode mode = avchd ? HdProfile::MODE_AVCHD : HdProfile::MODE_BLURAY;
+	if (s_config.Disc.GetHdVideoBitrateAuto()) {
+		int audioBitrate = s_config.Disc.GetAudioBitrate();
+		double capacity = HdProfile::MediaSizeBytes((HdProfile::MediaSize) s_config.Disc.GetMediaSize());
+		// leave ~5% for filesystem/muxing overhead and the audio stream
+		double videoBudget = capacity * 0.95 - audioBitrate * 1000.0 / 8.0 * totalSeconds;
+		int max = HdProfile::MaxVideoBitrateKbps(mode);
+		if (totalSeconds > 0 && videoBudget > 0) {
+			int bitrate = (int) (videoBudget * 8.0 / 1000.0 / totalSeconds);
+			if (bitrate > max)
+				bitrate = max;
+			if (bitrate < 1000)
+				bitrate = 1000;
+			return bitrate;
+		}
+		// no valid duration: fall back to the configured bitrate
+	}
+	return avchd ? s_config.Disc.GetAvchdVideoBitrate() : s_config.Disc.GetBlurayVideoBitrate();
 }
 
 /** Executes process */
@@ -337,8 +364,12 @@ bool ProcessBluray::Execute() {
 		}
 	}
 	progressDlg->SetSubSteps(vobCount * 200);
-	CheckCapacity(vobCount);
-	progressDlg->ReplaceSummaryMsg(s_config.Disc.GetMode() == BD_MODE_AVCHD
+	// resolve the bitrates once: auto-fit uses the selected media size
+	bool avchd = s_config.Disc.GetMode() == BD_MODE_AVCHD;
+	int videoBitrate = GetVideoBitrate(avchd, GetTotalSeconds());
+	int audioBitrate = s_config.Disc.GetAudioBitrate();
+	CheckCapacity(vobCount, videoBitrate, audioBitrate);
+	progressDlg->ReplaceSummaryMsg(avchd
 			? _("AVCHD mode (DVD media): menus and subtitles are not authored; every title becomes its own BD title.")
 			: _("Blu-ray mode: menus and subtitles are not authored; every title becomes its own BD title."));
 
@@ -359,7 +390,7 @@ bool ProcessBluray::Execute() {
 				wxString audioFile;
 				wxString chapterList;
 				double titleFps = 0;
-				if (!EncodeTitle(vob, titleIdx, workDir, videoFile, audioFile, titleFps, chapterList))
+				if (!EncodeTitle(vob, titleIdx, workDir, videoBitrate, audioBitrate, videoFile, audioFile, titleFps, chapterList))
 					return false;
 				wxString metaFile = workDir + wxString::Format(wxT("bd%02d.meta"), titleIdx);
 				if (!SaveTsMuxeRMeta(metaFile, videoFile, audioFile, titleFps, chapterList)) {

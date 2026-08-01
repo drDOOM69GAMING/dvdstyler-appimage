@@ -108,7 +108,7 @@ const wxString DEF_ISO_SIZE_CMD  = _T("mkisofs -quiet -print-size \"$DIR\"");
 // has UDF write support (removed from libisofs), so it cannot build UDF 2.50.
 // For strict UDF 2.50 (required by the Blu-ray/AVCHD specs) point this at a
 // UDF 2.50 capable tool, e.g. udfclient's "mkudfimage".
-const wxString DEF_BLURAY_ISO_CMD = _T("mkisofs -udf -V \"$VOL_ID\" -o \"$FILE\" \"$DIR\"");
+const wxString DEF_BLURAY_ISO_CMD = _T("mkisofs -udf -iso-level 3 -V \"$VOL_ID\" -o \"$FILE\" \"$DIR\"");
 const wxString DEF_BLURAY_TSMUXER_CMD = _T("tsMuxeR");
 const int DEF_BLURAY_VIDEO_BITRATE = 25000; // Kbit/s
 const int DEF_BLURAY_AUDIO_BITRATE = 384; // Kbit/s
@@ -289,6 +289,8 @@ public:
 	// media size preset (DVD-5/DVD-9 for AVCHD, BD-R 25/50/100 for Blu-ray)
 	int GetMediaSize(bool def = false);
 	void SetMediaSize(int size);
+	// auto-fit: compute the video bitrate to fill the selected media size
+	CONFIG_PROP_BOOL(HdVideoBitrateAuto, _T("Generate/HdVideoBitrateAuto"), true)
 
 	CONFIG_PROP(Label, _T("Interface/DefDiscLabel"), DEF_DISC_LABEL)
 	CONFIG_PROP_INT(Capacity, _T("Interface/DefDiscCapacity"), DEF_DISC_CAPACITY)
@@ -426,6 +428,8 @@ public:
 	void SetAvchdVideoBitrate(int kbps) { Disc.SetAvchdVideoBitrate(kbps); }
 	int GetBlurayAudioBitrate(bool def = false) { return Disc.GetAudioBitrate(def); }
 	void SetBlurayAudioBitrate(int kbps) { Disc.SetAudioBitrate(kbps); }
+	bool GetHdVideoBitrateAuto(bool def = false) { return Disc.GetHdVideoBitrateAuto(def); }
+	void SetHdVideoBitrateAuto(bool fit) { Disc.SetHdVideoBitrateAuto(fit); }
 	CONFIG_PROP_INT(HdQuality, _T("Generate/HdQuality"), DEF_HD_QUALITY)
 	CONFIG_PROP_BOOL(DrawButtonsOnBackground, _T("Generate/DrawButtonsOnBackground"), true)
 	CONFIG_PROP_BOOL(ButtonsOffset2px, _T("Generate/ButtonsOffset2px"), false)

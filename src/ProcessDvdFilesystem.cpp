@@ -91,7 +91,8 @@ bool ProcessDvdFilesystem::Execute() {
 	if (s_config.GetRemoveTempFiles()) {
 		wxDir d(dvdTmpDir);
 		wxString fname;
-		while (d.GetFirst(&fname, wxEmptyString, wxDIR_FILES))
+		for (bool hasEntry = d.GetFirst(&fname, wxEmptyString, wxDIR_FILES); hasEntry;
+				hasEntry = d.GetNext(&fname))
 			DeleteFile(dvdTmpDir + fname);
 	}
 	progressDlg->IncStep();

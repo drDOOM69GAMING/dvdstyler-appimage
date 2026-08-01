@@ -46,6 +46,7 @@ public:
     // begin wxGlade: MainWin::ids
     enum {
         MENU_BURN_ID = 2105,
+        MENU_BURN_ISO_ID = 2106,
         MENU_DVD_ADD_FILE_ID = 2110,
         MENU_DVD_ADD_FILE_AS_CHAPTER_ID,
         MENU_DVD_ADD_TITLES_FROM_DVD_ID,
@@ -185,6 +186,7 @@ public:
 	virtual void OnSave(wxCommandEvent& event); // wxGlade: <event_handler>
 	virtual void OnSaveAs(wxCommandEvent& event); // wxGlade: <event_handler>
 	virtual void OnBurn(wxCommandEvent& event); // wxGlade: <event_handler>
+	virtual void OnBurnIso(wxCommandEvent& event); // wxGlade: <event_handler>
 	virtual void OnExit(wxCommandEvent& event); // wxGlade: <event_handler>
 	virtual void OnUndo(wxCommandEvent &event); // wxGlade: <event_handler>
 	virtual void OnUpdateUIUndo(wxUpdateUIEvent &event);
@@ -208,6 +210,7 @@ public:
 	void OnSplitterTitleSash(wxSplitterEvent &event);
 	void OnResize(wxSizeEvent &event);
 	void OnClose(wxCloseEvent &event);
+	void KillChildProcesses();
 	
 	
 #ifdef __WXMSW__

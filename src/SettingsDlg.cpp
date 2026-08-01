@@ -238,13 +238,12 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	wxFlexGridSizer* coreGrid = NULL;
 	wxBoxSizer* debugSizer = NULL;
 	if (sizer) {
-		wxPanel* interfacePanel = new wxPanel(notebook, -1);
-		notebook->AddPage(interfacePanel, _("Core"));
-		propWindow = interfacePanel;
+		wxScrolledWindow* corePanel = new wxScrolledWindow(notebook, -1);
+		notebook->AddPage(corePanel, _("Core"));
+		propWindow = corePanel;
 
 		coreSizer = new wxBoxSizer(wxVERTICAL);
-		interfacePanel->SetAutoLayout(true);
-		interfacePanel->SetSizer(coreSizer);
+		corePanel->SetSizer(coreSizer);
 
 		coreGrid = new wxFlexGridSizer(2, 4, 16);
 		coreGrid->AddGrowableCol(1);
@@ -252,6 +251,9 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 
 		debugSizer = new wxBoxSizer(wxVERTICAL);
 		coreSizer->Add(debugSizer, 0, wxEXPAND | wxBOTTOM | wxLEFT | wxRIGHT, 10);
+
+		corePanel->FitInside();
+		corePanel->SetScrollRate(5, 5);
 	}
 
 	// ----------------- Core Tab -------------------- //
@@ -322,12 +324,12 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	wxCommandEvent evt;
 	OnChangeEncoderMode(evt);
 	
-	AddTextProp(coreGrid, _("Extra FFmpeg options:"), s_config.GetFfmpegOptions(def));
-	AddTextProp(coreGrid, _("Create ISO command:"), s_config.GetIsoCmd(def));
-	AddTextProp(coreGrid, _("Burn DVD-Video command:"), s_config.GetBurnCmd(def));
-	AddTextProp(coreGrid, _("Burn ISO command:"), s_config.GetBurnISOCmd(def));
-	AddTextProp(coreGrid, _("Add ECC (error correction) command:"), s_config.GetAddECCCmd(def));
-	AddTextProp(coreGrid, _("Format disc command:"), s_config.GetFormatCmd(def));
+	AddTextProp(coreGrid, _("Extra FFmpeg options:"), s_config.GetFfmpegOptions(def), false, 250);
+	AddTextProp(coreGrid, _("Create ISO command:"), s_config.GetIsoCmd(def), false, 250);
+	AddTextProp(coreGrid, _("Burn DVD-Video command:"), s_config.GetBurnCmd(def), false, 250);
+	AddTextProp(coreGrid, _("Burn ISO command:"), s_config.GetBurnISOCmd(def), false, 250);
+	AddTextProp(coreGrid, _("Add ECC (error correction) command:"), s_config.GetAddECCCmd(def), false, 250);
+	AddTextProp(coreGrid, _("Format disc command:"), s_config.GetFormatCmd(def), false, 250);
 	
 	AddText(coreGrid, _("Use mplex (MPEG multiplexer):"));
 	grpSizer = BeginGroup(coreGrid, wxT(""));
@@ -362,6 +364,10 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	AddText(coreGrid, _("Media size:"));
 	AddChoiceProp(coreGrid, wxT(""), wxEmptyString, wxArrayString(), 80, false);
 	mediaSizeCtrl = (wxChoice*) GetLastControl();
+	// auto-fit: compute the video bitrate to fill the selected media size
+	AddCheckProp(coreGrid, _("Auto video bitrate (fit to media size)"), s_config.Disc.GetHdVideoBitrateAuto(def));
+	autoBitrateCtrl = (wxCheckBox*) GetLastControl();
+	autoBitrateCtrl->Bind(wxEVT_CHECKBOX, &SettingsDlg::OnChangeAutoBitrate, this);
 	// quality profile
 	labels.clear();
 	labels.Add(_("Standard"));
@@ -378,9 +384,9 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	AddText(coreGrid, _("HD audio bitrate:"));
 	AddSpinProp(coreGrid, wxT(""), s_config.GetBlurayAudioBitrate(def), 128, 640, 80, _("KBit/s"), false);
 	audioBitrateCtrl = (wxSpinCtrl*) GetLastControl();
-	AddTextProp(coreGrid, _("tsMuxeR command:"), s_config.Disc.GetBlurayTsMuxeRCmd(def));
+	AddTextProp(coreGrid, _("tsMuxeR command:"), s_config.Disc.GetBlurayTsMuxeRCmd(def), false, 250);
 	tsmuxerCtrl = (wxTextCtrl*) GetLastControl();
-	AddTextProp(coreGrid, _("Blu-ray ISO command:"), s_config.Disc.GetBlurayIsoCmd(def));
+	AddTextProp(coreGrid, _("Blu-ray ISO command:"), s_config.Disc.GetBlurayIsoCmd(def), false, 250);
 	bdIsoCtrl = (wxTextCtrl*) GetLastControl();
 	UpdateHdControls();
 
@@ -479,6 +485,7 @@ bool SettingsDlg::SetValues() {
 		mediaSize = (int) (wxUIntPtr) mediaSizeCtrl->GetClientData(mediaSel);
 	s_config.Disc.SetMediaSize(mediaSize);
 	i++; // skip the media size control (read directly above)
+	s_config.Disc.SetHdVideoBitrateAuto(GetBool(i++)); // auto video bitrate checkbox
 	s_config.SetHdQuality(GetInt(i++));
 	s_config.SetBlurayVideoBitrate(GetInt(i++));
 	s_config.SetAvchdVideoBitrate(GetInt(i++));
@@ -524,6 +531,10 @@ void SettingsDlg::OnChangeHdMode(wxCommandEvent& evt) {
 	UpdateHdControls();
 }
 
+void SettingsDlg::OnChangeAutoBitrate(wxCommandEvent& evt) {
+	UpdateHdControls();
+}
+
 /** Dependency handling: the selected HD mode enables only the controls that
   * apply to it (Blu-ray vs AVCHD vs DVD). */
 void SettingsDlg::UpdateHdControls() {
@@ -531,9 +542,10 @@ void SettingsDlg::UpdateHdControls() {
 	bool hd = mode != BD_MODE_NONE;
 	bool bd = mode == BD_MODE_BLURAY;
 	bool avchd = mode == BD_MODE_AVCHD;
+	bool autoBitrate = hd && autoBitrateCtrl && autoBitrateCtrl->GetValue();
 	qualityCtrl->Enable(hd);
-	bdBitrateCtrl->Enable(bd);
-	avchdBitrateCtrl->Enable(avchd);
+	bdBitrateCtrl->Enable(bd && !autoBitrate);
+	avchdBitrateCtrl->Enable(avchd && !autoBitrate);
 	audioBitrateCtrl->Enable(hd);
 	tsmuxerCtrl->Enable(hd);
 	bdIsoCtrl->Enable(hd);

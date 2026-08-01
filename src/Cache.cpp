@@ -258,13 +258,14 @@ bool Cache::Clear() {
 		return successful;
 	wxDir d(m_dir);
 	wxString fname;
-	while (d.GetFirst(&fname, wxEmptyString, wxDIR_FILES)) {
+	for (bool hasEntry = d.GetFirst(&fname, wxEmptyString, wxDIR_FILES); hasEntry;
+			hasEntry = d.GetNext(&fname)) {
 		if (!wxRemoveFile(m_dir + wxFILE_SEP_PATH + fname)) {
 			wxLogError(wxString::Format(_("Can't remove file '%s'"), fname.c_str()));
 			successful = false;
 		}
 	}
-	d.Open(wxGetHomeDir());
+	d.Close();
 	wxRmdir(m_dir);
 	return successful;
 }
