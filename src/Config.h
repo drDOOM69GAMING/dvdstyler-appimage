@@ -15,7 +15,9 @@
 #include <wx/config.h>
 #include <wx/thread.h>
 #include <wx/filename.h>
+#include <wx/stdpaths.h>
 #include "Utils.h"
+#include "HdProfile.h"
 
 const wxString DEF_VERSION		= wxT("");
 const int DEF_LANGUAGE			= wxLANGUAGE_UNKNOWN;
@@ -37,7 +39,15 @@ const wxString DEF_TRANSITION	= wxT("fade.xml");
 const double DEF_TRANSITION_DURATION = 1.0;
 const wxString DEF_FILE_BROWSER_DIR = wxT("");
 #define DEF_FILE_BROWSER_LAST_DIR wxGetHomeDir()
-#define DEF_LAST_PROJECT_DIR wxGetHomeDir()
+/** User's DVDStyler folder in the Documents directory (VSO-style project
+  * layout): ~/Documents/DVDStyler, used for projects, output and ISOs. */
+inline wxString DefaultDocumentsDir() {
+	wxString dir = wxStandardPaths::Get().GetDocumentsDir();
+	if (dir.length() == 0 || dir == wxGetHomeDir())
+		dir = wxGetHomeDir() + wxFILE_SEP_PATH + wxT("Documents");
+	return dir + wxFILE_SEP_PATH + wxT("DVDStyler");
+}
+#define DEF_LAST_PROJECT_DIR DefaultDocumentsDir()
 #define DEF_LAST_ADD_DIR wxGetHomeDir()
 const int DEF_UNDO_HISTORY_SIZE = 100;
 const int DEF_VIDEO_BITRATE = -1;
@@ -55,9 +65,9 @@ const int DEF_DVD_RESERVED_SPACE = 0; // KB
 #ifdef __WXMSW__
 	#define DEF_GEN_TEMP_DIR wxFileName::GetTempDir()
 #else
-	#define DEF_GEN_TEMP_DIR (wxGetHomeDir() + wxFILE_SEP_PATH + wxT(".dvdstyler"))
+	#define DEF_GEN_TEMP_DIR (DefaultDocumentsDir() + wxFILE_SEP_PATH + wxT("temp"))
 #endif
-#define DEF_GEN_OUTPUT_DIR wxGetHomeDir()
+#define DEF_GEN_OUTPUT_DIR DefaultDocumentsDir()
 #ifdef __WXMSW__
 	const bool DEF_PREVIEW_DO        = false;
 	const wxString DEF_PREVIEW_CMD   = _T("wmplayer");
@@ -104,10 +114,11 @@ const int DEF_BLURAY_VIDEO_BITRATE = 25000; // Kbit/s
 const int DEF_BLURAY_AUDIO_BITRATE = 384; // Kbit/s
 const int DEF_AVCHD_VIDEO_BITRATE = 9000; // Kbit/s (DVD fit)
 // HD authoring mode: 0 = none, 1 = Blu-ray (BD-R/BD-RE), 2 = AVCHD (DVD)
-const int BD_MODE_NONE = 0;
-const int BD_MODE_BLURAY = 1;
-const int BD_MODE_AVCHD = 2;
-const int DEF_BD_MODE = BD_MODE_NONE;
+const int BD_MODE_NONE = HdProfile::MODE_NONE;
+const int BD_MODE_BLURAY = HdProfile::MODE_BLURAY;
+const int BD_MODE_AVCHD = HdProfile::MODE_AVCHD;
+const int DEF_BD_MODE = HdProfile::MODE_NONE;
+const int DEF_HD_QUALITY = HdProfile::QUALITY_HIGH;
 const wxString DEF_BURN_SCAN_CMD = _T("dvd+rw-mediainfo $DEVICE");
 const wxString DEF_BURN_CMD      = _T("growisofs -V \"$VOL_ID\" -dvd-compat -Z $DEV -dvd-video \"$DIR\" $SPEEDSTR");
 #ifdef __WXMAC__
@@ -123,7 +134,7 @@ const bool DEF_GENERATE_DO       = false;
 const bool DEF_ISO_DO            = false;
 const bool DEF_BURN_DO           = true;
 const bool DEF_FORMAT_DO         = false;
-#define DEF_ISO_SAVETO (wxGetHomeDir() + wxFILE_SEP_PATH)
+#define DEF_ISO_SAVETO (wxGetHomeDir() + wxFILE_SEP_PATH + wxT("Videos") + wxFILE_SEP_PATH)
 const int DEF_BURN_SPEED         = 0;
 const bool DEF_ADD_ECC_DO        = false;
 
@@ -158,6 +169,171 @@ const bool DEF_ADD_ECC_DO        = false;
   { if (def) return defValue; wxString val = cfg->Read(cfgName, Colour2String(defValue)); return String2Colour(val); }\
   void Set##name(const wxColour& value)\
   { wxLogNull log; if (value == defValue) cfg->DeleteEntry(cfgName); else cfg->Write(cfgName, Colour2String(value)); }
+
+/** Base class for the nested settings-model sections. Each section is a
+  * typed view over a shared configuration store; all accessors read and
+  * write the same keys as the flat Config accessors, so existing config
+  * files stay compatible. */
+class ConfigSection {
+public:
+	ConfigSection(): cfg(NULL) {}
+	void SetCfg(wxConfigBase* c) { cfg = c; }
+
+protected:
+	wxConfigBase* cfg;
+};
+
+/** App-level (interface) settings. */
+class AppSettings: public ConfigSection {
+public:
+	CONFIG_PROP(Version, _T("Version"), DEF_VERSION)
+	CONFIG_PROP(LanguageCode, _T("Interface/LanguageCode"), DEF_LANGUAGE_CODE)
+	CONFIG_PROP_INT(DefDvdResolution, _T("Interface/DefDvdResolution"), DEF_DVD_RESOLUTION)
+	CONFIG_PROP_INT(DefPostCommand, _T("Interface/DefPostCommand"), DEF_POST_COMMAND)
+	CONFIG_PROP_INT(DefChapterLength, _T("Interface/DefChapterLength"), DEF_CHAPTER_LENGTH)
+	CONFIG_PROP_BOOL(AddChapterAtTitleEnd, _T("Interface/AddChapterAtTitleEnd"), false)
+	CONFIG_PROP(FileBrowserDir, _T("Interface/FileBrowserDir"), DEF_FILE_BROWSER_DIR)
+	CONFIG_PROP(FileBrowserLastDir, _T("Interface/FileBrowserLastDir"), DEF_FILE_BROWSER_LAST_DIR)
+	CONFIG_PROP(LastProjectDir, _T("Interface/LastProjectDir"), DEF_LAST_PROJECT_DIR)
+	CONFIG_PROP(LastAddDir, _T("Interface/LastAddDir"), DEF_LAST_ADD_DIR)
+	CONFIG_PROP_INT(UndoHistorySize, _T("Interface/UndoHistorySize"), DEF_UNDO_HISTORY_SIZE)
+	CONFIG_PROP_BOOL(ShowWelcomeDlg, _T("Interface/ShowWelcomeDlg"), true)
+	CONFIG_PROP_BOOL(TitleDeletePrompt, _T("Interface/TitleDeletePrompt"), true)
+	CONFIG_PROP_INT(CacheClearPrompt, _T("Interface/CacheClearPrompt"), 0)
+	CONFIG_PROP_BOOL(OverwriteOutputDirPrompt, _T("Interface/OverwriteOutputDirPrompt"), true)
+	CONFIG_PROP_BOOL(ClearThumbnailCache, _T("Interface/ClearThumbnailCache"), false)
+};
+
+/** Video encoding settings. */
+class VideoSettings: public ConfigSection {
+public:
+	CONFIG_PROP_INT(Format, _T("Interface/DefVideoFormat"), DEF_VIDEO_FORMAT)
+	CONFIG_PROP_INT(AspectRatio, _T("Interface/DefAspectRatio"), DEF_ASPECT_RATIO)
+	CONFIG_PROP_BOOL(KeepAspectRatio, _T("Interface/DefKeepAspectRatio"), true)
+	CONFIG_PROP_BOOL(RencodeNtscFilm, _T("Interface/DefRencodeNtscFilm"), false)
+	CONFIG_PROP_BOOL(AllowHdTitles, _T("Generate/AllowHdTitles"), false)
+	CONFIG_PROP_INT(Bitrate, _T("Generate/VideoBitrate"), DEF_VIDEO_BITRATE)
+	CONFIG_PROP_BOOL(UseVAAPI, _T("Generate/UseVAAPI"), DEF_USE_VAAPI)
+	CONFIG_PROP(Encoder, _T("Generate/Encoder"), DEF_ENCODER)
+	CONFIG_PROP(EncoderMode, _T("Generate/EncoderMode"), wxT(""))
+	CONFIG_PROP(FfmpegOptions, _T("Generate/FfmpegOptions"), "")
+	CONFIG_PROP_INT(Vbr, _T("Generate/Vbr"), false)
+	CONFIG_PROP_INT(HdQuality, _T("Generate/HdQuality"), DEF_HD_QUALITY)
+};
+
+/** Audio encoding settings. */
+class AudioSettings: public ConfigSection {
+public:
+	CONFIG_PROP_INT(Format, _T("Interface/DefAudioFormat"), DEF_AUDIO_FORMAT)
+	CONFIG_PROP(Language, _T("Interface/DefAudioLanguage"), DEF_AUDIO_LANG)
+	CONFIG_PROP_BOOL(Surround51, _T("Interface/DefAudio51"), false)
+	CONFIG_PROP_BOOL(Normalize, _T("Interface/DefAudioNormalize"), false)
+	CONFIG_PROP_INT(Bitrate, _T("Generate/AudioBitrate"), DEF_AUDIO_BITRATE)
+};
+
+/** Subtitle settings. */
+class SubtitlesSettings: public ConfigSection {
+public:
+	CONFIG_PROP(DefaultLanguage, _T("Interface/DefSubtitleLanguage"), DEF_SUBTITLE_LANG)
+	CONFIG_PROP(CharacterSet, _T("Subtitles/CharacterSet"), wxT("UTF-8"))
+	CONFIG_PROP(FontFamily, _T("Subtitles/FontFamily"), wxT("Arial"))
+	CONFIG_PROP(FontStyle, _T("Subtitles/FontStyle"), wxT("Regular"))
+	CONFIG_PROP_DOUBLE(FontSize, _T("Subtitles/FontSize"), 28.0)
+	CONFIG_PROP_COLOUR(FillColour, _T("Subtitles/FillColour"), *wxYELLOW)
+	CONFIG_PROP_COLOUR(OutlineColour, _T("Subtitles/OutlineColour"), *wxBLACK)
+	CONFIG_PROP_DOUBLE(OutlineThickness, _T("Subtitles/OutlineThickness"), 3.0)
+	CONFIG_PROP_COLOUR(ShadowColour, _T("Subtitles/ShadowColour"), *wxBLACK)
+	CONFIG_PROP_INT(ShadowOffsetX, _T("Subtitles/ShadowOffsetX"), 0)
+	CONFIG_PROP_INT(ShadowOffsetY, _T("Subtitles/ShadowOffsetY"), 0)
+	CONFIG_PROP_INT(Alignment, _T("Subtitles/Alignment"), (wxALIGN_CENTER_HORIZONTAL | wxALIGN_BOTTOM))
+	CONFIG_PROP_INT(LeftMargin, _T("Subtitles/LeftMargin"), 60)
+	CONFIG_PROP_INT(RightMargin, _T("Subtitles/RightMargin"), 60)
+	CONFIG_PROP_INT(TopMargin, _T("Subtitles/TopMargin"), 20)
+	CONFIG_PROP_INT(BottomMargin, _T("Subtitles/BottomMargin"), 30)
+};
+
+/** Menu and slideshow settings. */
+class MenuSettings: public ConfigSection {
+public:
+	CONFIG_PROP(DefButton, _T("Interface/DefButton"), DEF_BUTTON)
+	CONFIG_PROP(DefTextButton, _T("Interface/DefTextButton"), DEF_TEXT_BUTTON)
+	CONFIG_PROP_BOOL(DefPlayAllTitlesets, _T("Interface/DefPlayAllTitlesets"), false)
+	CONFIG_PROP_INT(DefSlideDuration, _T("Interface/DefSlideDuration"), DEF_SLIDE_DURATION)
+	CONFIG_PROP(DefTransition, _T("Interface/DefTransition"), DEF_TRANSITION)
+	CONFIG_PROP_DOUBLE(DefTransitionDuration, _T("Interface/DefTransitionDuration"), DEF_TRANSITION_DURATION)
+	CONFIG_PROP_BOOL(AcceptInvalidActions, _T("Interface/AcceptInvalidActions"), false)
+	CONFIG_PROP_INT(FrameCount, _T("Generate/MenuFrameCount"), DEF_MENU_FRAME_COUNT)
+	CONFIG_PROP_INT(VideoBitrate, _T("Generate/MenuVideoBitrate"), DEF_MENU_VIDEO_BITRATE)
+	CONFIG_PROP_BOOL(VideoCBR, _T("Generate/MenuVideoCBR"), false)
+	CONFIG_PROP_BOOL(AllowHd, _T("Generate/AllowHdMenues"), false)
+	CONFIG_PROP_BOOL(DrawButtonsOnBackground, _T("Generate/DrawButtonsOnBackground"), true)
+	CONFIG_PROP_BOOL(ButtonsOffset2px, _T("Generate/ButtonsOffset2px"), false)
+	CONFIG_PROP_INT(SlideshowVideoBitrate, _T("Generate/SlideshowVideoBitrate"), DEF_SLIDESHOW_VIDEO_BITRATE)
+	CONFIG_PROP_BOOL(SlideshowVideoCBR, _T("Generate/SlideshowVideoCBR"), false)
+};
+
+/** Disc and authoring settings (DVD/Blu-ray/AVCHD). */
+class DiscSettings: public ConfigSection {
+public:
+	// HD authoring mode (none/Blu-ray/AVCHD) with dependency handling:
+	// changing the mode re-clamps the mode-specific bitrates.
+	int GetMode(bool def = false);
+	void SetMode(int mode);
+	int GetBlurayVideoBitrate(bool def = false);
+	void SetBlurayVideoBitrate(int kbps);
+	int GetAvchdVideoBitrate(bool def = false);
+	void SetAvchdVideoBitrate(int kbps);
+	int GetAudioBitrate(bool def = false);
+	void SetAudioBitrate(int kbps);
+	// media size preset (DVD-5/DVD-9 for AVCHD, BD-R 25/50/100 for Blu-ray)
+	int GetMediaSize(bool def = false);
+	void SetMediaSize(int size);
+
+	CONFIG_PROP(Label, _T("Interface/DefDiscLabel"), DEF_DISC_LABEL)
+	CONFIG_PROP_INT(Capacity, _T("Interface/DefDiscCapacity"), DEF_DISC_CAPACITY)
+	CONFIG_PROP_INT(ReservedSpace, _T("Generate/DvdReservedSpace"), DEF_DVD_RESERVED_SPACE)
+	CONFIG_PROP_BOOL(GenerateDo, _T("Generate/Do"), DEF_GENERATE_DO)
+	CONFIG_PROP_BOOL(AddECCDo, _T("AddECC/Do"), DEF_ADD_ECC_DO)
+	CONFIG_PROP(AddECCCmd, _T("AddECC/Cmd"), DEF_ADD_ECC_CMD)
+	CONFIG_PROP_BOOL(PreviewDo, _T("Preview/Do"), DEF_PREVIEW_DO)
+	CONFIG_PROP(PreviewCmd, _T("Preview/Cmd"), DEF_PREVIEW_CMD)
+	CONFIG_PROP_BOOL(IsoDo, _T("Iso/Do"), DEF_ISO_DO)
+	CONFIG_PROP(IsoCmd, _T("Iso/Cmd"), DEF_ISO_CMD)
+	CONFIG_PROP(IsoSizeCmd, _T("Iso/SizeCmd"), DEF_ISO_SIZE_CMD)
+	CONFIG_PROP(IsoSaveTo, _T("Iso/SaveTo"), DEF_ISO_SAVETO)
+	CONFIG_PROP(BlurayIsoCmd, _T("Iso/BlurayCmd"), DEF_BLURAY_ISO_CMD)
+	CONFIG_PROP(BlurayTsMuxeRCmd, _T("Generate/BlurayTsMuxeRCmd"), DEF_BLURAY_TSMUXER_CMD)
+	CONFIG_PROP_BOOL(BurnDo, _T("Burn/Do"), DEF_BURN_DO)
+	CONFIG_PROP(BurnCmd, _T("Burn/Cmd"), DEF_BURN_CMD)
+	CONFIG_PROP(BurnISOCmd, _T("Burn/ISOCmd"), DEF_BURN_ISO_CMD)
+	CONFIG_PROP(BurnDevice, _T("Burn/Device"), DEF_BURN_DEVICE)
+	CONFIG_PROP(BurnScanCmd, _T("Burn/ScanSmd"), DEF_BURN_SCAN_CMD)
+	CONFIG_PROP(BurnSpeedOpt, _T("Burn/SpeedOpt"), DEF_BURN_SPEED_OPT)
+	CONFIG_PROP_INT(BurnSpeed, _T("Burn/Speed"), DEF_BURN_SPEED)
+	CONFIG_PROP_BOOL(FormatDo, _T("Burn/FormatDo"), DEF_FORMAT_DO)
+	CONFIG_PROP(FormatCmd, _T("Burn/FormatCmd"), DEF_FORMAT_CMD)
+};
+
+/** Transcode/authoring engine settings. */
+class EncodeSettings: public ConfigSection {
+public:
+	CONFIG_PROP_INT(ThreadCount, _T("Generate/ThreadCount"), DEF_THREAD_COUNT)
+	CONFIG_PROP_BOOL(UseMplex, _T("Generate/UseMplex"), DEF_USE_MPLEX)
+	CONFIG_PROP_BOOL(UseMplexForMenus, _T("Generate/UseMplexForMenus"), DEF_USE_MPLEX_FOR_MENUS)
+	CONFIG_PROP(PlayCmd, _T("Generate/PlayCmd"), DEF_PLAY_CMD)
+	CONFIG_PROP(AVConvCmd, _T("Generate/AVConvCmd"), DEF_AVCONV_CMD)
+	CONFIG_PROP(MplexCmd, _T("Generate/MplexCmd"), DEF_MPLEX_CMD)
+	CONFIG_PROP(SpumuxCmd, _T("Generate/SpumuxCmd"), DEF_SPUMUX_CMD)
+	CONFIG_PROP(DvdauthorCmd, _T("Generate/DvdauthorCmd"), DEF_DVDAUTHOR_CMD)
+};
+
+/** Output settings. */
+class OutputSettings: public ConfigSection {
+public:
+	CONFIG_PROP(TempDir, _T("Generate/TempDir"), DEF_GEN_TEMP_DIR)
+	CONFIG_PROP(OutputDir, _T("Generate/OutputDir"), DEF_GEN_OUTPUT_DIR)
+	CONFIG_PROP_BOOL(RemoveTempFiles, _T("Generate/RemoveTempFiles"), true)
+};
 
 class Config {
 public:
@@ -240,12 +416,16 @@ public:
 	CONFIG_PROP_BOOL(MenuVideoCBR, _T("Generate/MenuVideoCBR"), false)
 	CONFIG_PROP_BOOL(AllowHdMenues, _T("Generate/AllowHdMenues"), false)
 	CONFIG_PROP_BOOL(AllowHdTitles, _T("Generate/AllowHdTitles"), false)
-	CONFIG_PROP_INT(BlurayMode, _T("Generate/BlurayMode"), DEF_BD_MODE)
-	CONFIG_PROP_INT(BlurayVideoBitrate, _T("Generate/BlurayVideoBitrate"), DEF_BLURAY_VIDEO_BITRATE)
-	CONFIG_PROP_INT(AvchdVideoBitrate, _T("Generate/AvchdVideoBitrate"), DEF_AVCHD_VIDEO_BITRATE)
-	CONFIG_PROP_INT(BlurayAudioBitrate, _T("Generate/BlurayAudioBitrate"), DEF_BLURAY_AUDIO_BITRATE)
-	CONFIG_PROP(BlurayIsoCmd, _T("Iso/BlurayCmd"), DEF_BLURAY_ISO_CMD)
-	CONFIG_PROP(BlurayTsMuxeRCmd, _T("Generate/BlurayTsMuxeRCmd"), DEF_BLURAY_TSMUXER_CMD)
+	// Blu-ray/AVCHD authoring settings (validated + dependency handling in Disc)
+	int GetBlurayMode(bool def = false) { return Disc.GetMode(def); }
+	void SetBlurayMode(int mode) { Disc.SetMode(mode); }
+	int GetBlurayVideoBitrate(bool def = false) { return Disc.GetBlurayVideoBitrate(def); }
+	void SetBlurayVideoBitrate(int kbps) { Disc.SetBlurayVideoBitrate(kbps); }
+	int GetAvchdVideoBitrate(bool def = false) { return Disc.GetAvchdVideoBitrate(def); }
+	void SetAvchdVideoBitrate(int kbps) { Disc.SetAvchdVideoBitrate(kbps); }
+	int GetBlurayAudioBitrate(bool def = false) { return Disc.GetAudioBitrate(def); }
+	void SetBlurayAudioBitrate(int kbps) { Disc.SetAudioBitrate(kbps); }
+	CONFIG_PROP_INT(HdQuality, _T("Generate/HdQuality"), DEF_HD_QUALITY)
 	CONFIG_PROP_BOOL(DrawButtonsOnBackground, _T("Generate/DrawButtonsOnBackground"), true)
 	CONFIG_PROP_BOOL(ButtonsOffset2px, _T("Generate/ButtonsOffset2px"), false)
     CONFIG_PROP_INT(SlideshowVideoBitrate, _T("Generate/SlideshowVideoBitrate"), DEF_SLIDESHOW_VIDEO_BITRATE)
@@ -286,7 +466,19 @@ public:
 	
 	CONFIG_PROP_BOOL(AddECCDo, _T("AddECC/Do"), DEF_ADD_ECC_DO)
 	CONFIG_PROP(AddECCCmd, _T("AddECC/Cmd"), DEF_ADD_ECC_CMD)
-	
+
+	// nested settings-model sections (typed views over the same store)
+	AppSettings App;
+	VideoSettings Video;
+	AudioSettings Audio;
+	SubtitlesSettings Subtitles;
+	MenuSettings Menu;
+	DiscSettings Disc;
+	EncodeSettings Encode;
+	OutputSettings Output;
+
+	void InitSections();
+
   protected:
     wxConfigBase* cfg;
 };

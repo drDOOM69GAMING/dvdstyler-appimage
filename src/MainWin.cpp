@@ -1071,7 +1071,8 @@ void MainWin::OnSave(wxCommandEvent& event) {
 }
 
 void MainWin::OnSaveAs(wxCommandEvent& event) {
-	wxFileDialog dlg(this, _("Save a DVDStyler project file"), m_lastDir, _T("dvd.dvds"),
+	wxString defName = m_dvd->GetLabel() + wxT(".dvds");
+	wxFileDialog dlg(this, _("Save a DVDStyler project file"), m_lastDir, defName,
 			_("Project files") + wxString(wxT(" (*.dvds;*.xml)|*.dvds;*.xml|"))
 			+ _("All Files") + wxString(wxT(" (*.*)|*.*")), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 	dlg.Centre();

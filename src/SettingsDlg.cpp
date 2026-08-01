@@ -21,6 +21,22 @@
 #define BUTTONS_DIR wxFindDataDirectory(_T("buttons"))
 #define TRANSITIONS_DIR wxFindDataDirectory(wxT("transitions"))
 
+/** VideoFormat enum values in the same order as DVD::GetVideoFormatLabels(hd):
+  * HD formats first, then the SD formats. */
+static const int kVideoFormatLabelEnums[] = {
+	vfPAL_HALF_HD, vfNTSC_HALF_HD, vfPAL_HDV, vfNTSC_HDV, vfPAL_FULL_HD, vfNTSC_FULL_HD,
+	vfPAL, vfNTSC, vfPAL_CROPPED, vfNTSC_CROPPED, vfPAL_HALF_D1, vfNTSC_HALF_D1, vfPAL_VCD, vfNTSC_VCD
+};
+
+/** Maps a stored VideoFormat back to its index in the HD label list
+  * (falls back to PAL 720x576). */
+static int VideoFormatToLabelIndex(int vf) {
+	for (int i = 0; i < (int) (sizeof(kVideoFormatLabelEnums) / sizeof(kVideoFormatLabelEnums[0])); i++)
+		if (kVideoFormatLabelEnums[i] == vf)
+			return i;
+	return 6; // vfPAL
+}
+
 enum {
 	FILE_BROWSER_CHOICE_ID = 7900,
 	RESET_DONT_SHOW_FLAGS_BT_ID,
@@ -87,8 +103,8 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 		vfSizer = new wxBoxSizer(wxHORIZONTAL);
 		interfaceGrid->Add(vfSizer);
 	}
-	int vf = s_config.GetDefVideoFormat() >= 2 ? s_config.GetDefVideoFormat() - 2 : 0;
-	labels = DVD::GetVideoFormatLabels();
+	int vf = VideoFormatToLabelIndex(s_config.GetDefVideoFormat());
+	labels = DVD::GetVideoFormatLabels(false, false, false, true);
 	AddChoiceProp(vfSizer, wxT(""), labels[vf], labels);
 	// fix size
 	wxControl* videoChoice = GetLastControl();
@@ -239,26 +255,35 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	}
 
 	// ----------------- Core Tab -------------------- //
-	wxSizer* lineSizer = AddSpinProp(coreGrid, _("Frame count of menu:"), s_config.GetMenuFrameCount(def), 1, 9999, 80,
-			wxT(""), false);
+	// Each row is label (column 0) + control (column 1) so the grid never
+	// staggers; extra controls (units, checkboxes) stay inside the control cell.
+	wxSizer* lineSizer = NULL;
+	AddText(coreGrid, _("Frame count of menu:"));
+	lineSizer = AddSpinProp(coreGrid, wxT(""), s_config.GetMenuFrameCount(def), 1, 9999, 80, wxT(""), false);
 	AddSpacer(lineSizer, 4);
 	AddCheckProp(lineSizer, _("Draw buttons on background"), s_config.GetDrawButtonsOnBackground(def));
+	AddSpacer(lineSizer, 4);
 	AddCheckProp(lineSizer, _("Allow HD menus"), s_config.GetAllowHdMenues(def));
 	
-	lineSizer = AddSpinProp(coreGrid, _("Menu video bitrate:"), s_config.GetMenuVideoBitrate(def), 1, 9000, 80,
-			_("KBit/s"), false);
+	AddText(coreGrid, _("Menu video bitrate:"));
+	lineSizer = AddSpinProp(coreGrid, wxT(""), s_config.GetMenuVideoBitrate(def), 1, 9000, 80, _("KBit/s"), false);
 	AddSpacer(lineSizer, 4);
 	AddCheckProp(lineSizer, wxT("CBR"), s_config.GetMenuVideoCBR(def));
-		
-	lineSizer = AddSpinProp(coreGrid, _("Slideshow video bitrate:"), s_config.GetSlideshowVideoBitrate(def), 1, 9000,
-			80, _("KBit/s"), false);
+	
+	AddText(coreGrid, _("Slideshow video bitrate:"));
+	lineSizer = AddSpinProp(coreGrid, wxT(""), s_config.GetSlideshowVideoBitrate(def), 1, 9000, 80, _("KBit/s"),
+			false);
 	AddSpacer(lineSizer, 4);
 	AddCheckProp(lineSizer, wxT("CBR"), s_config.GetSlideshowVideoCBR(def));
 	
-	AddSpinProp(coreGrid, _("Default audio bitrate:"), s_config.GetAudioBitrate(def), 1, 9999, 80, _("KBit/s"));
-	AddSpinProp(coreGrid, _("Thread count:"), s_config.GetThreadCount(def), 1, 99, 80);
-	AddCheckProp(coreGrid, _("Use hardware video decoding (VA-API)"), s_config.GetUseVAAPI(def));
-	AddSpinProp(coreGrid, _("DVD reserved space:"), s_config.GetDvdReservedSpace(def), 0, 9999999, 80, _("KB"));
+	AddText(coreGrid, _("Default audio bitrate:"));
+	AddSpinProp(coreGrid, wxT(""), s_config.GetAudioBitrate(def), 1, 9999, 80, _("KBit/s"), false);
+	AddText(coreGrid, _("Thread count:"));
+	AddSpinProp(coreGrid, wxT(""), s_config.GetThreadCount(def), 1, 99, 80, wxT(""), false);
+	AddText(coreGrid, _("Use hardware video decoding (VA-API)"));
+	AddCheckProp(coreGrid, wxT(""), s_config.GetUseVAAPI(def));
+	AddText(coreGrid, _("DVD reserved space:"));
+	AddSpinProp(coreGrid, wxT(""), s_config.GetDvdReservedSpace(def), 0, 9999999, 80, _("KB"), false);
 	
 	// Encoder
 	wxArrayString encoders;
@@ -267,7 +292,8 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	encoders.Add(wxT("ffmpeg-vbr"));
 #endif
 	int encoder = s_config.GetEncoder(def) == wxT("ffmpeg-vbr") ? 1 : 0;
-	wxSizer* encoderSizer = AddChoiceCustomProp(coreGrid, _("Encoder:"), encoders[encoder], encoders, 1, 0, false);
+	AddText(coreGrid, _("Encoder:"));
+	wxSizer* encoderSizer = AddChoiceCustomProp(coreGrid, wxT(""), encoders[encoder], encoders, 1, 0, false);
 	encoderCtrl = (wxChoice*) GetLastControl();
 	AddSpacer(encoderSizer, 4);
 	if (modes.size() == 0) {
@@ -294,14 +320,14 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	wxCommandEvent evt;
 	OnChangeEncoderMode(evt);
 	
-	AddTextProp(coreGrid, _("FFmpeg options:"), s_config.GetFfmpegOptions(def));
+	AddTextProp(coreGrid, _("Extra FFmpeg options:"), s_config.GetFfmpegOptions(def));
 	AddTextProp(coreGrid, _("Create ISO command:"), s_config.GetIsoCmd(def));
-	AddTextProp(coreGrid, _("Burn command:"), s_config.GetBurnCmd(def));
+	AddTextProp(coreGrid, _("Burn DVD-Video command:"), s_config.GetBurnCmd(def));
 	AddTextProp(coreGrid, _("Burn ISO command:"), s_config.GetBurnISOCmd(def));
-	AddTextProp(coreGrid, _("Add ECC command:"), s_config.GetAddECCCmd(def));
-	AddTextProp(coreGrid, _("Format command:"), s_config.GetFormatCmd(def));
+	AddTextProp(coreGrid, _("Add ECC (error correction) command:"), s_config.GetAddECCCmd(def));
+	AddTextProp(coreGrid, _("Format disc command:"), s_config.GetFormatCmd(def));
 	
-	AddText(coreGrid, _("Use mplex:"));
+	AddText(coreGrid, _("Use mplex (MPEG multiplexer):"));
 	grpSizer = BeginGroup(coreGrid, wxT(""));
 	labels.clear();
 	labels.Add(_("Yes"));
@@ -314,7 +340,7 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	AddText(coreGrid, _("NTSC film:"));
 	AddCheckProp(coreGrid, _("re-encode by default"), s_config.GetDefRencodeNtscFilm(def));
 	AddText(coreGrid, _("HD video:"));
-	AddCheckProp(coreGrid, _("allow (experimental)"), s_config.GetAllowHdTitles(def));
+	AddCheckProp(coreGrid, _("allow HD resolutions"), s_config.GetAllowHdTitles(def));
 	AddText(coreGrid, _("HD output:"));
 	grpSizer = BeginGroup(coreGrid, wxT(""));
 	labels.clear();
@@ -323,11 +349,38 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	labels.Add(_("AVCHD (DVD-R/RW)"));
 	AddRadioGroupProp(grpSizer, labels, s_config.GetBlurayMode(def));
 	EndGroup();
-	AddSpinProp(coreGrid, _("Blu-ray video bitrate:"), s_config.GetBlurayVideoBitrate(def), 1000, 40000, 80, _("KBit/s"));
-	AddSpinProp(coreGrid, _("AVCHD video bitrate:"), s_config.GetAvchdVideoBitrate(def), 1000, 18000, 80, _("KBit/s"));
-	AddSpinProp(coreGrid, _("Audio bitrate:"), s_config.GetBlurayAudioBitrate(def), 128, 640, 80, _("KBit/s"));
-	AddTextProp(coreGrid, _("tsMuxeR command:"), s_config.GetBlurayTsMuxeRCmd(def));
-	AddTextProp(coreGrid, _("Blu-ray ISO command:"), s_config.GetBlurayIsoCmd(def));
+	// dependency wiring: the selected mode enables/disables the related controls
+	m_hdModeGroupIdx = GetLastControlIndex();
+	if (sizer) {
+		wxArrayPtrVoid* radioControls = (wxArrayPtrVoid*) m_controls[m_hdModeGroupIdx];
+		for (int i = 0; i < (int) radioControls->GetCount(); i++)
+			((wxRadioButton*) (*radioControls)[i])->Bind(wxEVT_RADIOBUTTON, &SettingsDlg::OnChangeHdMode, this);
+	}
+	// media size preset (per selected mode; populated in UpdateHdControls)
+	AddText(coreGrid, _("Media size:"));
+	AddChoiceProp(coreGrid, wxT(""), wxEmptyString, wxArrayString(), 80, false);
+	mediaSizeCtrl = (wxChoice*) GetLastControl();
+	// quality profile
+	labels.clear();
+	labels.Add(_("Standard"));
+	labels.Add(_("High"));
+	labels.Add(_("High+"));
+	AddChoiceProp(coreGrid, _("HD quality:"), labels[s_config.GetHdQuality(def)], labels, 80, false);
+	qualityCtrl = (wxChoice*) GetLastControl();
+	AddText(coreGrid, _("Blu-ray video bitrate:"));
+	AddSpinProp(coreGrid, wxT(""), s_config.GetBlurayVideoBitrate(def), 1000, 40000, 80, _("KBit/s"), false);
+	bdBitrateCtrl = (wxSpinCtrl*) GetLastControl();
+	AddText(coreGrid, _("AVCHD video bitrate:"));
+	AddSpinProp(coreGrid, wxT(""), s_config.GetAvchdVideoBitrate(def), 1000, 18000, 80, _("KBit/s"), false);
+	avchdBitrateCtrl = (wxSpinCtrl*) GetLastControl();
+	AddText(coreGrid, _("HD audio bitrate:"));
+	AddSpinProp(coreGrid, wxT(""), s_config.GetBlurayAudioBitrate(def), 128, 640, 80, _("KBit/s"), false);
+	audioBitrateCtrl = (wxSpinCtrl*) GetLastControl();
+	AddTextProp(coreGrid, _("tsMuxeR command:"), s_config.Disc.GetBlurayTsMuxeRCmd(def));
+	tsmuxerCtrl = (wxTextCtrl*) GetLastControl();
+	AddTextProp(coreGrid, _("Blu-ray ISO command:"), s_config.Disc.GetBlurayIsoCmd(def));
+	bdIsoCtrl = (wxTextCtrl*) GetLastControl();
+	UpdateHdControls();
 
 	grpSizer = BeginGroup(debugSizer, _("Debug"));
 	AddCheckProp(grpSizer, _("Don't remove temp files"), !s_config.GetRemoveTempFiles(def));
@@ -359,7 +412,7 @@ bool SettingsDlg::SetValues() {
 	}
 	s_config.SetDefDiscLabel(GetString(i++));
 	s_config.SetDefDiscCapacity(GetInt(i++));
-	s_config.SetDefVideoFormat(GetInt(i++) + 2);
+	s_config.SetDefVideoFormat(kVideoFormatLabelEnums[GetInt(i++)]);
 	s_config.SetDefAspectRatio(GetInt(i++) + 1);
 	s_config.SetDefKeepAspectRatio(GetBool(i++));
 	s_config.SetDefAudioFormat(GetInt(i++) + 2);
@@ -416,11 +469,19 @@ bool SettingsDlg::SetValues() {
 	s_config.SetDefRencodeNtscFilm(GetBool(i++));
 	s_config.SetAllowHdTitles(GetBool(i++));
 	s_config.SetBlurayMode(GetInt(i++));
+	// media size: map the selected choice back to its preset via client data
+	int mediaSize = HdProfile::DefaultMediaSize((HdProfile::Mode) s_config.Disc.GetMode());
+	int mediaSel = mediaSizeCtrl->GetSelection();
+	if (mediaSel >= 0 && mediaSizeCtrl->GetClientData(mediaSel) != NULL)
+		mediaSize = (int) (wxUIntPtr) mediaSizeCtrl->GetClientData(mediaSel);
+	s_config.Disc.SetMediaSize(mediaSize);
+	i++; // skip the media size control (read directly above)
+	s_config.SetHdQuality(GetInt(i++));
 	s_config.SetBlurayVideoBitrate(GetInt(i++));
 	s_config.SetAvchdVideoBitrate(GetInt(i++));
 	s_config.SetBlurayAudioBitrate(GetInt(i++));
-	s_config.SetBlurayTsMuxeRCmd(GetString(i++));
-	s_config.SetBlurayIsoCmd(GetString(i++));
+	s_config.Disc.SetBlurayTsMuxeRCmd(GetString(i++));
+	s_config.Disc.SetBlurayIsoCmd(GetString(i++));
 	s_config.SetRemoveTempFiles(!GetBool(i++));
 	return true;
 }
@@ -454,6 +515,42 @@ void SettingsDlg::OnChangeEncoderMode(wxCommandEvent& evt) {
 	xhqCtrl->Enable(modeCtrl->GetSelection() == 3);
 	if (!xhqCtrl->IsEnabled())
 		xhqCtrl->SetValue(false);
+}
+
+void SettingsDlg::OnChangeHdMode(wxCommandEvent& evt) {
+	UpdateHdControls();
+}
+
+/** Dependency handling: the selected HD mode enables only the controls that
+  * apply to it (Blu-ray vs AVCHD vs DVD). */
+void SettingsDlg::UpdateHdControls() {
+	int mode = GetInt(m_hdModeGroupIdx);
+	bool hd = mode != BD_MODE_NONE;
+	bool bd = mode == BD_MODE_BLURAY;
+	bool avchd = mode == BD_MODE_AVCHD;
+	qualityCtrl->Enable(hd);
+	bdBitrateCtrl->Enable(bd);
+	avchdBitrateCtrl->Enable(avchd);
+	audioBitrateCtrl->Enable(hd);
+	tsmuxerCtrl->Enable(hd);
+	bdIsoCtrl->Enable(hd);
+	// media size presets follow the selected mode
+	mediaSizeCtrl->Clear();
+	if (avchd) {
+		mediaSizeCtrl->Append(_("DVD-5 (4.7 GB)"), (void*) (wxUIntPtr) HdProfile::MEDIA_DVD5);
+		mediaSizeCtrl->Append(_("DVD-9 (8.5 GB)"), (void*) (wxUIntPtr) HdProfile::MEDIA_DVD9);
+	} else if (bd) {
+		mediaSizeCtrl->Append(_("BD-R 25 GB"), (void*) (wxUIntPtr) HdProfile::MEDIA_BD25);
+		mediaSizeCtrl->Append(_("BD-R 50 GB (BDXL)"), (void*) (wxUIntPtr) HdProfile::MEDIA_BD50);
+		mediaSizeCtrl->Append(_("BD-R 100 GB (BDXL)"), (void*) (wxUIntPtr) HdProfile::MEDIA_BD100);
+	}
+	int cur = s_config.Disc.GetMediaSize();
+	for (int i = 0; i < (int) mediaSizeCtrl->GetCount(); i++)
+		if ((wxUIntPtr) mediaSizeCtrl->GetClientData(i) == (wxUIntPtr) cur) {
+			mediaSizeCtrl->SetSelection(i);
+			break;
+		}
+	mediaSizeCtrl->Enable(hd);
 }
 
 void SettingsDlg::OnCheckHQ(wxCommandEvent& evt) {

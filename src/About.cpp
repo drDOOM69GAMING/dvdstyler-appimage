@@ -47,7 +47,21 @@ const wxString DOOMS_CHANGELOG = wxT(
 	"   special thanks line added.\n\n"
 	"7. The \"No template\" button in the template dialog now reads\n"
 	"   \"No menu\".\n\n"
-	"8. Version bumped from 3.3b4 to 3.3b5.\n"
+	"8. Blu-ray (BD-R/BD-RE) and AVCHD (DVD-R/RW) authoring: a new\n"
+	"   \"HD output\" mode in Settings > System core switches the pipeline\n"
+	"   to full 1080p H.264 encodes, authored to BDMV with tsMuxeR and\n"
+	"   packaged as a UDF 2.50 ISO (mkisofs). AVCHD uses Blu-ray High@4.0\n"
+	"   constraints with a 1s GOP and 18 Mbit/s max rate so it fits on\n"
+	"   DVD media (high-fps sources become 720p50/60); Blu-ray uses\n"
+	"   High@4.1 with a 2s GOP and 40 Mbit/s max rate.\n\n"
+	"9. HD quality profiles (Standard/High/High+) trade encode speed for\n"
+	"   quality by adjusting the B-frame and reference-frame counts.\n\n"
+	"10. Settings refactored into a validated, layered model (app/video/\n"
+	"    audio/subtitles/menu/disc/encode/output sections) with clamping\n"
+	"    validation and dependency handling: switching the HD mode\n"
+	"    re-clamps the applicable bitrates and enables only the controls\n"
+	"    that apply.\n\n"
+	"11. Version bumped from 3.3b4 to 3.3b6.\n"
 );
 
 About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,

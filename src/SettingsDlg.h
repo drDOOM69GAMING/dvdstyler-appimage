@@ -12,6 +12,7 @@
 #define SETTINGS_DLG_H
 
 #include <wx/wx.h>
+#include <wx/spinctrl.h>
 #include <wxVillaLib/PropDlg.h>
 class Cache;
 
@@ -35,10 +36,21 @@ private:
 	wxChoice* modeCtrl;
 	wxCheckBox* hqCtrl;
 	wxCheckBox* xhqCtrl;
+	// HD output controls (dependency-wired: mode enables/disables the rest)
+	int m_hdModeGroupIdx;
+	wxChoice* qualityCtrl;
+	wxChoice* mediaSizeCtrl;
+	wxSpinCtrl* bdBitrateCtrl;
+	wxSpinCtrl* avchdBitrateCtrl;
+	wxSpinCtrl* audioBitrateCtrl;
+	wxTextCtrl* tsmuxerCtrl;
+	wxTextCtrl* bdIsoCtrl;
 	void OnChangeFileBrowserDir(wxCommandEvent& evt);
 	void OnResetDontShowFlags(wxCommandEvent& evt);
 	void OnClearCache(wxCommandEvent& evt);
 	void OnChangeEncoderMode(wxCommandEvent& evt);
+	void OnChangeHdMode(wxCommandEvent& evt);
+	void UpdateHdControls();
 	void OnCheckHQ(wxCommandEvent& evt);
 	void OnCheckXHQ(wxCommandEvent& evt);
 	void AddSpacer(wxSizer* sizer, int size);

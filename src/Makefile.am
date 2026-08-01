@@ -11,7 +11,7 @@ dvdstyler_SOURCES = Config.cpp Languages.cpp Utils.cpp SysUtils.cpp Cache.cpp\
  Process.cpp ProcessTranscode.cpp ProcessCleanTemp.cpp ProcessProjectInfo.cpp ProcessMenu.cpp ProcessEncode.cpp\
  ProcessMenuTransitions.cpp ProcessSlideshow.cpp ProcessSubtitles.cpp ProcessDvdFilesystem.cpp ProcessPreview.cpp\
  ProcessAskOutput.cpp ProcessIsoImage.cpp ProcessEccData.cpp ProcessFormatDvd.cpp ProcessBurn.cpp\
- ProcessBluray.cpp
+ ProcessBluray.cpp HdProfile.cpp
 
 if OSX
 dvdstyler_SOURCES += BurnDlgOSX.mm

@@ -38,6 +38,9 @@ jobs:
           test -f squashfs-root/AppRun || { echo "MISSING: AppRun"; exit 1; }
           grep -aq "export PATH=.*\$APPDIR/usr/bin" squashfs-root/AppRun || { echo "AppRun PATH export missing"; exit 1; }
           grep -aq "BlurayMode" squashfs-root/usr/bin/dvdstyler || { echo "Blu-ray config strings missing"; exit 1; }
+          for lib in libfontconfig.so.1 libfreetype.so.6 libfribidi.so.0 libstdc++.so.6 libgcc_s.so.1 libz.so.1; do
+            test -e "squashfs-root/usr/lib/$lib" || { echo "MISSING bundled lib: $lib"; exit 1; }
+          done
           echo "All bundled tools verified"
 
       - name: Upload AppImage artifact

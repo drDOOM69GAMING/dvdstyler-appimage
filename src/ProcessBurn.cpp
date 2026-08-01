@@ -99,14 +99,14 @@ bool ProcessBurn::Execute() {
 		}
 	}
 	if (discSize < 2290000)
-		discSize = s_config.GetBlurayMode() == BD_MODE_BLURAY ? 12219392 : 2295104;
+		discSize = s_config.Disc.GetMode() == BD_MODE_BLURAY ? 12219392 : 2295104;
 #endif
 	// check size
 	long size = 0;
 #ifdef __WXMAC__
 	bool burnIso = true;
 #else
-	bool burnIso = s_config.GetBlurayMode() != BD_MODE_NONE || burnDlg->DoAddECC();
+	bool burnIso = s_config.Disc.GetMode() != BD_MODE_NONE || burnDlg->DoAddECC();
 #endif
 	if (burnIso) {
 		size = wxFile(tmpDir + TMP_ISO).Length() / 2048; // size in 2048 blocks

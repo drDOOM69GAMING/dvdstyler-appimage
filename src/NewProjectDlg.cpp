@@ -132,10 +132,16 @@ bool NewProjectDlg::SetValues() {
 }
 
 void NewProjectDlg::UpdateResolutionIcon(int sel) {
-	UpdateIcon(0, sel > 0 ? _("Warning") : _("Info"),
+	if (s_config.Disc.GetMode() != BD_MODE_NONE) {
+		UpdateIcon(0, _("Info"),
+				_("Blu-ray/AVCHD output ignores this setting: titles are always authored\nat 1920x1080 (or 1280x720 for high-fps AVCHD sources)."),
+				wxART_INFORMATION);
+	} else {
+		UpdateIcon(0, sel > 0 ? _("Warning") : _("Info"),
 				sel > 0 ? _("DVD with HD resolution doesn't comply with the standard and\ncan be played only in some blue-ray or software players.")
 						: _("DVD standard officially supports only video data\nwith resolution up to 720x576 pixels (SD)."),
 				sel > 0 ? wxART_WARNING : wxART_INFORMATION);
+	}
 }
 
 void NewProjectDlg::OnChangeResolution(wxCommandEvent& evt) {

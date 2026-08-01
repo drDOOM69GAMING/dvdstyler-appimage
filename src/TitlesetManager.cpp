@@ -506,6 +506,18 @@ bool TitlesetManager::AddVideo(const wxString& fname, bool createTitle, int tsi,
 		delete vob;
 		return AddAudio(fname);
 	}
+	// auto-name the project after the first video added (VSO-style)
+	if (m_dvd->GetLabel() == s_config.GetDefDiscLabel()) {
+		bool hasVideo = false;
+		for (size_t tsi = 0; !hasVideo && tsi < m_dvd->GetTitlesets().Count(); tsi++)
+			for (size_t pgci = 0; !hasVideo && pgci < m_dvd->GetTitlesets()[tsi]->GetTitles().Count(); pgci++)
+				if (m_dvd->GetTitlesets()[tsi]->GetTitles()[pgci]->GetVobs().Count() > 0)
+					hasVideo = true;
+		if (!hasVideo) {
+			wxFileName fn(fname);
+			m_dvd->SetLabel(fn.GetName());
+		}
+	}
 	
 	// set chapters
 	int chapterCount = vob->GetChapterCount();

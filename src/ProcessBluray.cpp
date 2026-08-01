@@ -31,7 +31,7 @@ ProcessBluray::ProcessBluray(ProgressDlg* progressDlg, DVD* dvd, BurnDlg* burnDl
 
 /** Returns true, if process need be executed */
 bool ProcessBluray::IsNeedExecute() {
-	return s_config.GetBlurayMode() != BD_MODE_NONE;
+	return s_config.Disc.GetMode() != BD_MODE_NONE;
 }
 
 /** Returns the Blu-ray compliant progressive frame rate for the given source fps */
@@ -84,13 +84,17 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	audioFile = base + wxT(".ac3");
 
 	// frame rate
-	bool avchd = s_config.GetBlurayMode() == BD_MODE_AVCHD;
+	bool avchd = s_config.Disc.GetMode() == BD_MODE_AVCHD;
 	double srcFps = vob->GetVideoStream() ? vob->GetVideoStream()->GetSourceFps() : 0;
 	fps = GetBdFps(srcFps);
 	// AVCHD: keep 50/60 fps sources smooth as 720p50/60 (AVCHD 2.0)
 	if (avchd && srcFps > 45.0)
 		fps = srcFps > 55.0 ? 60000.0 / 1001.0 : 50.0;
-	int gop = GetGopSize(fps, avchd ? 1 : 2);
+	// settings model -> pipeline planner: resolve the coherent encoder profile
+	int videoBitrate = avchd ? s_config.Disc.GetAvchdVideoBitrate() : s_config.Disc.GetBlurayVideoBitrate();
+	HdProfile::Params profile = HdProfile::Resolve(avchd ? HdProfile::MODE_AVCHD : HdProfile::MODE_BLURAY,
+			(HdProfile::Quality) s_config.Video.GetHdQuality(), videoBitrate);
+	int gop = GetGopSize(fps, profile.gopSeconds);
 
 	// build ffmpeg command
 	wxString cmd = s_config.GetAVConvCmd();
@@ -102,21 +106,13 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 		cmd += wxString::Format(wxT(" -ss %g"), vob->GetStartTime());
 	cmd += wxT(" -i \"") + vob->GetFilename() + wxT("\"");
 
-	// AVCHD is Blu-ray constrained to DVD media: High@4.0, max GOP 1 s,
-	// max 18 Mbit/s. High-fps sources are encoded as 720p50/60.
+	// AVCHD is Blu-ray constrained to DVD media (High@4.0, max GOP 1 s,
+	// max 18 Mbit/s). High-fps sources are encoded as 720p50/60.
 	int width = 1920;
 	int height = 1080;
-	wxString level = wxT("4.1");
-	int maxRate = 40000;
-	int bufSize = 30000;
-	if (avchd) {
-		level = wxT("4.0");
-		maxRate = 18000;
-		bufSize = 15000;
-		if (fps > 45.0) {
-			width = 1280;
-			height = 720;
-		}
+	if (avchd && fps > 45.0) {
+		width = 1280;
+		height = 720;
 	}
 
 	// video: scale to the target resolution keeping aspect ratio, pad to fill
@@ -132,12 +128,11 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	cmd += wxT(" -vf \"") + vf + wxT("\"");
 	cmd += wxT(" -r ") + GetFpsStr(fps);
 	cmd += wxT(" -map 0:v:0");
-	cmd += wxT(" -c:v libx264 -profile:v high -level ") + level + wxT(" -preset medium -pix_fmt yuv420p");
+	cmd += wxT(" -c:v libx264 -profile:v high -level ") + profile.GetLevelStr() + wxT(" -preset medium -pix_fmt yuv420p");
 	cmd += wxT(" -colorspace bt709 -color_primaries bt709 -color_trc bt709");
-	cmd += wxString::Format(wxT(" -b:v %dk -maxrate %dk -bufsize %dk"),
-			avchd ? s_config.GetAvchdVideoBitrate() : s_config.GetBlurayVideoBitrate(), maxRate, bufSize);
-	cmd += wxString::Format(wxT(" -g %d -keyint_min %d -sc_threshold 0 -bf 3 -refs 4"), gop, gop / 2);
-	cmd += wxT(" -x264opts bluray_compat=1:slices=4");
+	cmd += wxString::Format(wxT(" -b:v %dk -maxrate %dk -bufsize %dk"), videoBitrate, profile.maxrateKbps, profile.bufsizeKbps);
+	cmd += wxString::Format(wxT(" -g %d -keyint_min %d -sc_threshold 0 -bf %d -refs %d"), gop, gop / 2, profile.bframes, profile.refs);
+	cmd += wxString::Format(wxT(" -x264opts bluray_compat=%d:slices=%d"), profile.blurayCompat ? 1 : 0, profile.slices);
 	// chapters force key frames (offset to the trimmed timeline)
 	chapterList.Clear();
 	for (unsigned int i = 0; i < vob->GetCells().size(); i++) {
@@ -167,7 +162,7 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 		if (stream && stream->GetSourceChannelNumber() >= 6)
 			channels = 6;
 		cmd += wxT(" -map 0:a:0 -c:a ac3");
-		cmd += wxString::Format(wxT(" -b:a %dk -ar 48000 -ac %d"), s_config.GetBlurayAudioBitrate(), channels);
+		cmd += wxString::Format(wxT(" -b:a %dk -ar 48000 -ac %d"), s_config.Disc.GetAudioBitrate(), channels);
 		// timestamp repair: keep A/V in sync on drifting sources
 		cmd += wxT(" -af aresample=async=1000:first_pts=0");
 		if (vob->GetRecordingTime() > 0)
@@ -249,7 +244,7 @@ bool ProcessBluray::AuthorBdmv(const wxString& metaFile, const wxString& bdmvRoo
 	if (!wxDir::Exists(bdmvRoot))
 		wxMkdir(bdmvRoot);
 	int playlistsBefore = CountPlaylists(bdmvRoot);
-	wxString cmd = s_config.GetBlurayTsMuxeRCmd();
+	wxString cmd = s_config.Disc.GetBlurayTsMuxeRCmd();
 	cmd += wxT(" \"") + metaFile + wxT("\" \"") + bdmvRoot + wxT("\"");
 	ProcessExecute exec(progressDlg);
 	if (!exec.Execute(cmd)) {
@@ -271,11 +266,12 @@ bool ProcessBluray::AuthorBdmv(const wxString& metaFile, const wxString& bdmvRoo
 void ProcessBluray::CheckCapacity(int vobCount) {
 	if (vobCount <= 0)
 		return;
-	bool avchd = s_config.GetBlurayMode() == BD_MODE_AVCHD;
-	double videoBitrate = avchd ? s_config.GetAvchdVideoBitrate() : s_config.GetBlurayVideoBitrate();
-	double audioBitrate = s_config.GetBlurayAudioBitrate();
-	// usable capacities: DVD-R 4.7 GB, BD-R 25 GB (in bytes)
-	double capacity = avchd ? 4700372992.0 : 25025314816.0;
+	HdProfile::Mode mode = (HdProfile::Mode) s_config.Disc.GetMode();
+	bool avchd = mode == HdProfile::MODE_AVCHD;
+	int videoBitrate = avchd ? s_config.Disc.GetAvchdVideoBitrate() : s_config.Disc.GetBlurayVideoBitrate();
+	int audioBitrate = s_config.Disc.GetAudioBitrate();
+	HdProfile::MediaSize mediaSize = (HdProfile::MediaSize) s_config.Disc.GetMediaSize();
+	double capacityGB = HdProfile::MediaSizeGB(mediaSize);
 	double totalSeconds = 0;
 	for (int tsi = 0; tsi < (int) dvd->GetTitlesets().Count(); tsi++) {
 		Titleset* ts = dvd->GetTitlesets()[tsi];
@@ -285,13 +281,13 @@ void ProcessBluray::CheckCapacity(int vobCount) {
 				totalSeconds += pgc->GetVobs()[vobi]->GetDuration();
 		}
 	}
-	double estBytes = (videoBitrate + audioBitrate) * 1000.0 / 8.0 * totalSeconds * 1.05;
+	double estBytes = HdProfile::EstimateBytes(totalSeconds, videoBitrate, audioBitrate);
 	progressDlg->AddSummaryMsg(wxString::Format(
 			_("Estimated output size: %.2f GB for %.0f minutes of video."), estBytes / 1.0e9, totalSeconds / 60.0));
-	if (estBytes > capacity)
+	if (estBytes > HdProfile::MediaSizeBytes(mediaSize))
 		progressDlg->AddSummaryMsg(
 				wxString::Format(_("Warning: the estimated output size exceeds the %.1f GB media capacity. "
-						"Reduce the video bitrate or the duration."), capacity / 1.0e9), wxEmptyString, *wxRED);
+						"Reduce the video bitrate or the duration."), capacityGB), wxEmptyString, *wxRED);
 }
 
 /** Executes process */
@@ -322,7 +318,7 @@ bool ProcessBluray::Execute() {
 	}
 	progressDlg->SetSubSteps(vobCount * 200);
 	CheckCapacity(vobCount);
-	progressDlg->ReplaceSummaryMsg(s_config.GetBlurayMode() == BD_MODE_AVCHD
+	progressDlg->ReplaceSummaryMsg(s_config.Disc.GetMode() == BD_MODE_AVCHD
 			? _("AVCHD mode (DVD media): menus and subtitles are not authored; every title becomes its own BD title.")
 			: _("Blu-ray mode: menus and subtitles are not authored; every title becomes its own BD title."));
 
@@ -406,7 +402,7 @@ bool ProcessBlurayIso::BuildIso(const wxString& isoFile) {
 	wxString dir = dvdOutDir;
 	if (dir.Last() == wxFILE_SEP_PATH)
 		dir.RemoveLast();
-	wxString cmd = s_config.GetBlurayIsoCmd();
+	wxString cmd = s_config.Disc.GetBlurayIsoCmd();
 	wxString label = dvd->GetLabel();
 	label.Replace(wxT("\""), wxT("\\\""));
 	cmd.Replace(_T("$VOL_ID"), label);

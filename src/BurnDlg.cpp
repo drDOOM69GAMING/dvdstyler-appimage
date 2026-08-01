@@ -358,7 +358,9 @@ void BurnDlg::UpdateCtrls(bool def) {
 		m_previewTextCtrl->SetValue(s_config.GetPreviewCmd());
 	}
 
-	wxString outName = wxT("dvd");
+	wxString outName = m_dvd->GetLabel();
+	if (outName == wxT("DVD")) // default label: use a generic name
+		outName = wxT("dvd");
 	if (m_dvd->GetFilename().length())
 		wxFileName::SplitPath(m_dvd->GetFilename(), NULL, &outName, NULL);
 

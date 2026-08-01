@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${VERSION:-3.3b5}"
+VERSION="${VERSION:-3.3b6}"
 APPDIR="$ROOT/DVDStyler.AppDir"
 TOOLS="$ROOT/.appimage-tools"
 rm -rf "$APPDIR"
@@ -62,6 +62,42 @@ unzip -o -q "$TSMUXER_ZIP" -d "$APPDIR/usr/bin"
 chmod +x "$APPDIR/usr/bin/tsMuxeR"
 
 # ---------------------------------------------------------------------------
+# Bundle every remaining host dependency that is legal to ship (everything
+# except the glibc core: libc/libm/libdl/libpthread/ld-linux). linuxdeploy
+# skips some of these via its excludelist, so we force-deploy them explicitly;
+# linuxdeploy also pulls in their transitive dependencies.
+# ---------------------------------------------------------------------------
+find_lib() {
+	local name="$1" p
+	for p in "/usr/lib/$name" "/usr/lib/x86_64-linux-gnu/$name" \
+			"/lib/$name" "/lib/x86_64-linux-gnu/$name" "/usr/lib64/$name"; do
+		if [ -e "$p" ]; then
+			echo "$p"
+			return 0
+		fi
+	done
+	return 1
+}
+
+EXTRA_LIBS=(
+	libfontconfig.so.1
+	libfreetype.so.6
+	libfribidi.so.0
+	libz.so.1
+	libstdc++.so.6
+	libgcc_s.so.1
+)
+LIB_ARGS=()
+for lib in "${EXTRA_LIBS[@]}"; do
+	p="$(find_lib "$lib")"
+	if [ -n "$p" ]; then
+		LIB_ARGS+=(-l "$p")
+	else
+		echo "WARNING: could not locate $lib, leaving it to the host" >&2
+	fi
+done
+
+# ---------------------------------------------------------------------------
 # Assemble the AppDir with linuxdeploy + gtk plugin
 # ---------------------------------------------------------------------------
 LD="$TOOLS/linuxdeploy-x86_64.AppImage"
@@ -78,6 +114,7 @@ export VERSION="$VERSION"
 	--appdir "$APPDIR" \
 	-e "$APPDIR/usr/bin/dvdstyler" \
 	"${TOOL_ARGS[@]}" \
+	"${LIB_ARGS[@]}" \
 	--plugin gtk \
 	--desktop-file data/dvdstyler.desktop \
 	--icon-file data/dvdstyler.png

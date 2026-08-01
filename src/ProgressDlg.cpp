@@ -373,7 +373,7 @@ void ProgressDlg::Run(BurnDlg* burnDlg, DVD* dvd) {
 	// processes
 	vector<Process*> processes;
 	processes.push_back(new ProcessProjectInfo(this, dvd)); // project info
-	if (s_config.GetBlurayMode() != BD_MODE_NONE) {
+	if (s_config.Disc.GetMode() != BD_MODE_NONE) {
 		processes.push_back(new ProcessBluray(this, dvd, burnDlg, dvdOutDir, tmpDir)); // HD titles
 	} else {
 		processes.push_back(new ProcessMenu(this, dvd, dvdTmpDir)); // menus
@@ -384,7 +384,7 @@ void ProgressDlg::Run(BurnDlg* burnDlg, DVD* dvd) {
 		processes.push_back(new ProcessDvdFilesystem(this, dvd, dvdTmpDir, dvdOutDir));
 	}
 	processes.push_back(new ProcessAskOutput(this, burnDlg));
-	if (s_config.GetBlurayMode() != BD_MODE_NONE) {
+	if (s_config.Disc.GetMode() != BD_MODE_NONE) {
 		processes.push_back(new ProcessBlurayIso(this, dvd, burnDlg, dvdOutDir, tmpDir)); // UDF 2.50 ISO
 	} else {
 		processes.push_back(new ProcessPreview(this, burnDlg, dvdOutDir));
