@@ -81,7 +81,8 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wx/mediactrl.h>]], [[wxMediaCtrl med
 AC_MSG_RESULT([$WX_OK])
 if test "x$WX_OK" = x"no"; then
   AC_MSG_ERROR([
-    wxWidgets media library (libwx_gtk2u_media) is missing.
+    wxWidgets media library is missing. Install the wxGTK media development
+    package (e.g. libwxgtk-media3.0-gtk3-dev on Ubuntu).
 ])
 fi
 
