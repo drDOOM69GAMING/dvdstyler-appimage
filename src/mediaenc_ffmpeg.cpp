@@ -259,6 +259,23 @@ bool wxFfmpegMediaEncoder::addVideoStream(int codecId, VideoFormat videoFormat, 
 	return true;
 }
 
+#if LIBAVCODEC_VERSION_MAJOR >= 63
+// FFmpeg 9 (libavcodec 63) removed the AVCodec.sample_fmts field, so the
+// supported formats have to be queried. The returned list is terminated by
+// AV_SAMPLE_FMT_NONE, or is NULL when every format is supported.
+bool hasSampleFmt(AVCodec* codec, AVSampleFormat sample_fmt) {
+	const void* sampleFmtList = NULL;
+	if (codec != NULL
+			&& avcodec_get_supported_config(NULL, codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0, &sampleFmtList, NULL) >= 0
+			&& sampleFmtList != NULL) {
+		const AVSampleFormat* sampleFmts = (const AVSampleFormat*) sampleFmtList;
+		for (int fIdx = 0; sampleFmts[fIdx] != AV_SAMPLE_FMT_NONE; fIdx++)
+			if (sampleFmts[fIdx] == sample_fmt)
+				return true;
+	}
+	return false;
+}
+#else
 bool hasSampleFmt(AVCodec* codec, AVSampleFormat sample_fmt) {
 	if (codec != NULL && codec->sample_fmts != NULL) {
 		int fIdx = 0;
@@ -270,6 +287,7 @@ bool hasSampleFmt(AVCodec* codec, AVSampleFormat sample_fmt) {
 	}
 	return false;
 }
+#endif
 
 bool wxFfmpegMediaEncoder::addAudioStream(int codecId) {
 	if (codecId == AV_CODEC_ID_NONE) {

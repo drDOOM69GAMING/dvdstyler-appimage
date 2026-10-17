@@ -128,7 +128,11 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     pointing at the last title it muxed, so a multi-title disc started with the
     last movie added; it is now reset to the first title (this matches the
     single-title output byte for byte)
-37. Version bumped to 3.3b10
+37. Fixed the build against FFmpeg 9 (libavcodec 63), which removed the
+    `AVCodec.sample_fmts` field that the unused `hasSampleFmt()` helper (left
+    over upstream) still read; on that version the supported sample formats are
+    now queried with `avcodec_get_supported_config()`
+38. Version bumped to 3.3b10
 
 ## Blu-ray / AVCHD playback status
 

@@ -98,7 +98,10 @@ const wxString DOOMS_CHANGELOG = wxT(
 	"25. The disc's first-play object now points at the first title (tsMuxeR\n"
 	"    leaves it on the last title it muxed), so a disc without menus starts\n"
 	"    with the first movie instead of the last one added.\n"
-	"26. Version bumped to 3.3b10.\n"
+	"26. Fixed the build against FFmpeg 9 (libavcodec 63), which removed the\n"
+	"    AVCodec.sample_fmts field that hasSampleFmt() still read; the supported\n"
+	"    sample formats are now queried via avcodec_get_supported_config().\n"
+	"27. Version bumped to 3.3b10.\n"
 );
 
 About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,
