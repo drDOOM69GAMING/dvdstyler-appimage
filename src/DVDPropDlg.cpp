@@ -65,7 +65,8 @@ wxArrayString DVDPropDlg::GetFPCommands() {
 bool DVDPropDlg::SetValues() {
 	if (!Validate())
 		return false;
-	int n = s_config.GetAllowHdTitles() ? 10 : 9;
+	PersistHdSettings();
+	int n = m_resolutionIdx >= 0 ? 11 : 10;
 	if (GetString(n).length() > 0) {
 		DVDAction action;
 		action.SetCustom(GetString(n));

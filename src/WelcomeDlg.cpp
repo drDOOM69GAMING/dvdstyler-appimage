@@ -94,6 +94,7 @@ void WelcomeDlg::CreatePropPanel(wxSizer* sizer) {
 bool WelcomeDlg::SetValues() {
 	if (!Validate())
 		return false;
+	PersistHdSettings();
 	if (GetBool(GetLastControlIndex()))
 		s_config.SetShowWelcomeDlg(false);
 	return true;

@@ -1164,7 +1164,8 @@ void MainWin::OnBurnIso(wxCommandEvent& event) {
 void MainWin::Burn(bool autoStart) {
 	// check if titles fit on DVD
 	m_titlesetManager->AskForReencoding(m_dvd->GetVideoFormat());
-	if (m_dvd->GetCapacity() != dcUNLIMITED && m_dvd->GetSize() > m_dvd->GetCapacityValue()) {
+	if (s_config.Disc.GetMode() == BD_MODE_NONE
+			&& m_dvd->GetCapacity() != dcUNLIMITED && m_dvd->GetSize() > m_dvd->GetCapacityValue()) {
 		wxMessageBox(_("The selected video files don't fit on DVD. Please reduce\n\
 video quality (bitrate) or remove some titles."), _("Burn"), wxOK|wxICON_ERROR, this);
 		return;
