@@ -132,16 +132,47 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     `AVCodec.sample_fmts` field that the unused `hasSampleFmt()` helper (left
     over upstream) still read; on that version the supported sample formats are
     now queried with `avcodec_get_supported_config()`
-38. Version bumped to 3.3b10
+38. Fixed AVCHD projects being muxed as full Blu-ray: `SaveTsMuxeRMeta()` always
+    passed `--blu-ray`, and tsMuxeR checks for `--blu-ray` before `--avchd`, so
+    every AVCHD build got Blu-ray v2/v3 descriptors plus the META/BDJO/JAR
+    directories that AVCHD does not allow - one of the reasons players reported
+    "unsupported disc" for AVCHD. AVCHD now emits `--avchd` and gets the AVCHD
+    (v1) index and descriptors, verified against tsMuxeR 2.7.0
+39. Fixed chapter marks being dropped: the mux option used `--chapter=`, which
+    tsMuxeR does not know and silently ignores, so chapters were never written
+    to the playlist. It is now `--custom-chapters=` with `;`-separated
+    `hh:mm:ss.mmm` values; verified against tsMuxeR 2.7.0 (1 mark before, 2
+    marks after)
+40. Fixed A/V desync of muxed menu and slideshow audio: the video path rescaled
+    timestamps to the stream time base but the audio path wrote them in codec
+    units (1/48000) into a 1/90000 stream, so the audio stream ended after
+    only 48000/90000 (53%) of the video length
+41. Fixed silent audio frames being only half cleared for packed (non planar)
+    formats, and several FFmpeg resource leaks (one AVPacket and the video
+    AVFrame per frame, the output format context freed with `av_freep()` on its
+    streams instead of `avformat_free_context()`)
+42. Fixed AVCHD/Blu-ray ISO images with 39 or more titles being written corrupt:
+    every directory was given a single sector for its File Identifier
+    Descriptors, which overflowed and pushed the rest of the image out of place
+    (the image was written larger than the size it declared, so readers saw an
+    empty disc). Directories now get as many sectors as they need
+43. Fixed the Blu-ray temp directory `<temp>/bd-tmp` never being cleaned up:
+    it kept accumulating the transcoded `.264`/`.ac3` files of every run
+44. Stored disc mode and HD audio bitrate are now validated when read, like they
+    already were when written
+45. Version bumped to 3.3b10
 
 ## Blu-ray / AVCHD playback status
 
 The disc authored by this build (1920x1080, standards-rate H.264/AC-3, UDF 2.50
 BDMV) plays fully on a standalone Blu-ray player and mounts/decodes cleanly in
-software. The Sony PlayStation 4 currently reports "unsupported disc" for AVCHD
-discs produced with 29.97 Hz video and for the original 720p59.94 output; the
-remaining suspected cause is the frame rate (the PS4-proven reference discs are
-authored at 1080p23.976), so a film-rate (23.976) encode is the next test.
+software. Two defects that made AVCHD discs unplayable on consoles are fixed in
+this version: AVCHD projects were muxed with `--blu-ray`, i.e. with Blu-ray
+v2/v3 descriptors and META/BDJO/JAR directories, and ISOs with 39 or more
+titles were written corrupt. AVCHD projects now get the AVCHD (v1) index and
+descriptors. The Sony PlayStation 4 still needs to be retested - the PS4-proven
+reference discs are authored at 1080p23.976, so if a 29.97 Hz encode is still
+rejected the remaining suspect is the frame rate, not the disc structure.
 
 ## Bundled tools
 
