@@ -454,6 +454,7 @@ void TitlesetManager::UpdateItems(wxProgressDialog* progressDlg) {
 					caption = vob->GetFilenameDisplay().AfterLast(wxFILE_SEP_PATH);
 					if (caption.Find(wxT('.')) > 0)
 						caption = caption.BeforeLast(wxT('.'));
+					caption = ClipTitleName(caption);
 				}
 				wxThumb* thumb = new wxThumb(fname, caption);
 				thumb->SetId(DVD::MakeId(tsi, pgci, vobi, false));

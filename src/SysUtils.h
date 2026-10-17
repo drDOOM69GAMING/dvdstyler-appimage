@@ -41,6 +41,16 @@ const size_t DISC_LABEL_LEN_UDF = 30;
   * and "DVD" is returned if nothing usable is left. */
 wxString ClipDiscLabel(const wxString& label, size_t maxLen = DISC_LABEL_LEN_ISO);
 
+/** Maximum length of a title name shown in the title list and used to build the
+  * disc label. Kept in sync with the volume identifier limit so that a title
+  * taken from a long file name can never produce an over-long disc label. */
+const size_t TITLE_NAME_LEN = DISC_LABEL_LEN_ISO;
+
+/** Shortens a title name to maxLen characters, appending an ellipsis when the
+  * name had to be cut, so that long file names neither overflow the title list
+  * nor produce a disc label that the mastering tools reject. */
+wxString ClipTitleName(const wxString& name, size_t maxLen = TITLE_NAME_LEN);
+
 /** System Manager interface */
 class SystemManager {
 public:

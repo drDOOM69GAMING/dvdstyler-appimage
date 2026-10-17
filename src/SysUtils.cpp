@@ -62,6 +62,17 @@ wxString ClipDiscLabel(const wxString& label, size_t maxLen) {
 	return result.length() ? result : wxT("DVD");
 }
 
+wxString ClipTitleName(const wxString& name, size_t maxLen) {
+	wxString result = name;
+	result.Trim(false);
+	result.Trim(true);
+	if (result.length() <= maxLen)
+		return result;
+	if (maxLen <= 3)
+		return result.Left(maxLen);
+	return result.Left(maxLen - 3) + wxT("...");
+}
+
 /** Checks if user has a privileges to stop (ie. shutdown) the computer system. */
 bool SystemManager::CanStop() {
 #ifdef __WXMSW__
