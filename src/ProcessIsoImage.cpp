@@ -12,6 +12,7 @@
 #include "BurnDlg.h"
 #include "Cache.h"
 #include "Config.h"
+#include "SysUtils.h"
 #include <wxVillaLib/utils.h>
 #include <wx/filename.h>
 
@@ -57,7 +58,7 @@ bool ProcessIsoImage::Execute() {
 	progressDlg->AddSummaryMsg(_("Creating ISO image"));
 	progressDlg->SetSubSteps(100);
 	cmd = s_config.GetIsoCmd();
-	wxString label = dvd->GetLabel();
+	wxString label = ClipDiscLabel(dvd->GetLabel());
 	label.Replace(wxT("\""), wxT("\\\""));
 	cmd.Replace(_T("$VOL_ID"), label);
 	cmd.Replace(_T("$DIR"), dvdOutDir.Mid(0, dvdOutDir.length() - 1));

@@ -27,6 +27,20 @@ extern "C++" {
 	void EnumDevices(wxArrayString& devices, wxComboBox* deviceChoice);
 #endif
 
+/** Maximum length of the disc label (volume identifier) accepted by the ISO 9660
+  * mastering tools (mkisofs/growisofs -V). The UDF primary volume descriptor
+  * (Blu-ray) can hold 32 characters as well, but needs one byte for the dstring
+  * compression id, so DISC_LABEL_LEN_UDF is smaller. */
+const size_t DISC_LABEL_LEN_ISO = 32;
+const size_t DISC_LABEL_LEN_UDF = 30;
+
+/** Returns the disc label cleaned up for use as a volume identifier and clipped
+  * to maxLen characters, so that ISO creation cannot fail with
+  * "mkisofs: Volume ID string too long". Characters that are not allowed in a
+  * volume identifier are replaced, leading/trailing spaces and dots are removed
+  * and "DVD" is returned if nothing usable is left. */
+wxString ClipDiscLabel(const wxString& label, size_t maxLen = DISC_LABEL_LEN_ISO);
+
 /** System Manager interface */
 class SystemManager {
 public:

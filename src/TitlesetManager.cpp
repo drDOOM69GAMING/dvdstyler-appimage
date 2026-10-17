@@ -14,7 +14,7 @@
 #include "MenuPropDlg.h"
 #include "MPEG.h"
 #include "Config.h"
-#include "Utils.h"
+#include "SysUtils.h"
 #include "MessageDlg.h"
 #include "ProcessTranscode.h"
 #include <wxVillaLib/ThumbnailFactory.h>
@@ -23,6 +23,8 @@
 #include <wx/splitter.h>
 #include <wx/dnd.h>
 #include <wx/clipbrd.h>
+#include <wx/dir.h>
+#include <wx/filename.h>
 #include <wx/utils.h>
 #include <wx/artprov.h>
 #include <wx/progdlg.h>
@@ -30,6 +32,42 @@
 //////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// TitleDnDFile ///////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+
+/** Recursively collects the media files of a dropped directory, so that a whole
+  * folder can be dragged into the project. Hidden files and directories are
+  * skipped and the recursion is bounded to avoid pathological trees. */
+static void CollectDroppedDir(const wxString& dirPath, wxArrayString& files, int depth = 8) {
+	if (depth <= 0)
+		return;
+	wxDir dir(dirPath);
+	if (!dir.IsOpened())
+		return;
+	wxString entry;
+	bool cont = dir.GetFirst(&entry, wxEmptyString, wxDIR_FILES|wxDIR_DIRS);
+	while (cont) {
+		wxString path = dirPath + wxFileName::GetPathSeparator() + entry;
+		if (wxDirExists(path)) {
+			if (entry != wxT(".") && entry != wxT("..") && !entry.StartsWith(wxT(".")))
+				CollectDroppedDir(path, files, depth - 1);
+		} else if (!entry.StartsWith(wxT("."))) {
+			files.Add(path);
+		}
+		cont = dir.GetNext(&entry);
+	}
+}
+
+/** Expands a dropped path list: directories are replaced by the media files
+  * they contain, single files are kept as they are. */
+static wxArrayString ExpandDroppedPaths(const wxArrayString& filenames) {
+	wxArrayString result;
+	for (unsigned int i = 0; i < filenames.size(); i++) {
+		if (wxDirExists(filenames[i]))
+			CollectDroppedDir(filenames[i], result);
+		else
+			result.Add(filenames[i]);
+	}
+	return result;
+}
 
 class TitleDnDFile: public wxDropTarget {
 public:
@@ -72,8 +110,9 @@ public:
 
 	bool OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filenames, wxDragResult def) {
 		bool res = false;
-		for (unsigned int i = 0; i < filenames.size(); i++)
-			res = AddFile(filenames[i], i == 0, i == filenames.size() - 1, def) || res;
+		wxArrayString files = ExpandDroppedPaths(filenames);
+		for (unsigned int i = 0; i < files.size(); i++)
+			res = AddFile(files[i], i == 0, i == files.size() - 1, def) || res;
 		return res;
 	}
 	
@@ -515,7 +554,8 @@ bool TitlesetManager::AddVideo(const wxString& fname, bool createTitle, int tsi,
 					hasVideo = true;
 		if (!hasVideo) {
 			wxFileName fn(fname);
-			m_dvd->SetLabel(fn.GetName());
+			m_dvd->SetLabel(ClipDiscLabel(fn.GetName()));
+
 		}
 	}
 	

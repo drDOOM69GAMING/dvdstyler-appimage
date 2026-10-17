@@ -481,6 +481,7 @@ def build_udf(src, out_path, label, volset_id=None, app_id="ConvertXToHD.exe 3.0
     reserve_vds = PART_START + part_len + 32
     reserve_avdp = total - 1
 
+    label = label.encode('utf-8', errors='ignore')[:30].decode('utf-8', errors='ignore')
     pvd = build_pvd(label, volset_id, app_id, root_time)
     iuvd = build_iuvd(label)
     pd = build_pd(part_len)

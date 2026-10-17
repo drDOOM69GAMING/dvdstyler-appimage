@@ -120,7 +120,7 @@ bool ProcessBurn::Execute() {
 		cmd = s_config.GetBurnCmd();
 		cmd.Replace(_T("$DIR"), dvdOutDir.Mid(0, dvdOutDir.length() - 1));
 	}
-	wxString label = dvd->GetLabel();
+	wxString label = ClipDiscLabel(dvd->GetLabel());
 	label.Replace(wxT("\""), wxT("\\\""));
 	cmd.Replace(_T("$VOL_ID"), label);
 	cmd.Replace(_T("$DEV"), device);

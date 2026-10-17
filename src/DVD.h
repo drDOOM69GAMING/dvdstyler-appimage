@@ -12,6 +12,7 @@
 #define DVD_H
 
 #include "Titleset.h"
+#include "SysUtils.h"
 
 enum DvdResolution {
 	dvdSD = 0,
@@ -43,7 +44,7 @@ public:
     /** Returns disc label */
     wxString GetLabel() { return m_label; }
     /** Sets disc label */
-    void SetLabel(wxString label) { m_label = label; }
+    void SetLabel(wxString label) { m_label = ClipDiscLabel(label); }
 	
     /** Returns DVD resolution (SD / Half HD / Full HD)  */
     DvdResolution GetDvdResolution() { return m_dvdResolution; }

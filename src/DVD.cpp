@@ -19,6 +19,7 @@
 #include <wxSVGXML/svgxmlhelpr.h>
 #include <wxVillaLib/utils.h>
 #include <wxVillaLib/PropDlg.h>
+#include "SysUtils.h"
 
 #define TEMPLATES_DIR wxFindDataDirectory(_T("templates"))
 
@@ -524,6 +525,7 @@ bool DVD::PutXML(const wxSvgXmlDocument& xml, wxProgressDialog* progressDlg) {
 		return false;
 	}
 	root->GetPropVal(wxT("name"), &m_label);
+	m_label = ClipDiscLabel(m_label);
 
 	wxString val;
 	long lval;

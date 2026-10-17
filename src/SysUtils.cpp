@@ -42,6 +42,26 @@ extern "C" {
 #include <wx/msw/registry.h>
 #endif
 
+/** Characters that are not allowed in an ISO 9660 volume identifier. */
+static const wxChar VOLUME_ID_INVALID_CHARS[] = wxT("/\\*?\"<>|:");
+
+wxString ClipDiscLabel(const wxString& label, size_t maxLen) {
+	wxString result;
+	for (size_t i = 0; i < label.length() && result.length() < maxLen; i++) {
+		wxChar c = label[i];
+		if (c < 0x20 || c == 0x7f) // control characters
+			continue;
+		if (wxStrchr(VOLUME_ID_INVALID_CHARS, c))
+			c = wxT('_');
+		result += c;
+	}
+	result.Trim(false);
+	result.Trim(true);
+	while (result.length() > 0 && result.Last() == wxT('.'))
+		result.RemoveLast();
+	return result.length() ? result : wxT("DVD");
+}
+
 /** Checks if user has a privileges to stop (ie. shutdown) the computer system. */
 bool SystemManager::CanStop() {
 #ifdef __WXMSW__

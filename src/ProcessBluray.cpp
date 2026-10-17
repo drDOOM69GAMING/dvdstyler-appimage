@@ -12,6 +12,7 @@
 #include "Titleset.h"
 #include "BurnDlg.h"
 #include "Config.h"
+#include "SysUtils.h"
 #include <wxVillaLib/utils.h>
 #include <wx/filename.h>
 #include <wx/dir.h>
@@ -519,7 +520,7 @@ bool ProcessBlurayIso::BuildIso(const wxString& isoFile) {
 	if (dir.Last() == wxFILE_SEP_PATH)
 		dir.RemoveLast();
 	wxString cmd = s_config.Disc.GetBlurayIsoCmd();
-	wxString label = dvd->GetLabel();
+	wxString label = ClipDiscLabel(dvd->GetLabel(), DISC_LABEL_LEN_UDF);
 	label.Replace(wxT("\""), wxT("\\\""));
 	cmd.Replace(_T("$VOL_ID"), label);
 	cmd.Replace(_T("$DIR"), dir);
