@@ -82,8 +82,16 @@ bool ProcessCleanTemp::DeleteDir(wxString dir) {
 
 bool ProcessCleanTemp::DeleteTempFiles(bool deleteOutDir) {
 	progressDlg->AddDetailMsg(_("Cleaning temporary directory"));
-	if (wxDirExists(dvdTmpDir) && !DeleteDir(dvdTmpDir)) {
+	if (wxDir::Exists(dvdTmpDir) && !DeleteDir(dvdTmpDir)) {
 		wxLogError(_("Cannot remove directory '%s'"), dvdTmpDir.c_str());
+		return false;
+	}
+	// the Blu-ray/AVCHD pipeline writes its elementary streams and tsMuxeR meta
+	// files to <tmpDir>/bd-tmp; nothing else ever removed that directory, so it
+	// kept growing with multi-GB .264 files from every interrupted or finished run
+	wxString bdTmpDir = tmpDir + wxString(wxT("bd-tmp")) + wxFILE_SEP_PATH;
+	if (wxDir::Exists(bdTmpDir) && !DeleteDir(bdTmpDir)) {
+		wxLogError(_("Cannot remove directory '%s'"), bdTmpDir.c_str());
 		return false;
 	}
 	if (deleteOutDir && wxDirExists(dvdOutDir)) {
