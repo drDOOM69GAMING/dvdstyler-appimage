@@ -94,7 +94,13 @@ static void SetClampedInt(wxConfigBase* cfg, const wxChar* cfgName, int value, i
 }
 
 int DiscSettings::GetMode(bool def) {
-	return def ? HdProfile::MODE_NONE : (int) cfg->Read(_T("Generate/BlurayMode"), (long) HdProfile::MODE_NONE);
+	int mode = def ? HdProfile::MODE_NONE : (int) cfg->Read(_T("Generate/BlurayMode"), (long) HdProfile::MODE_NONE);
+	// SetMode() clamps on the way out, so an out-of-range value can only come
+	// from a hand-edited or damaged settings file: fall back to "no HD" instead
+	// of handing an unknown mode to the profile resolver and the settings UI
+	if (mode < HdProfile::MODE_NONE || mode > HdProfile::MODE_AVCHD)
+		mode = HdProfile::MODE_NONE;
+	return mode;
 }
 
 void DiscSettings::SetMode(int mode) {
@@ -133,8 +139,13 @@ void DiscSettings::SetAvchdVideoBitrate(int kbps) {
 }
 
 int DiscSettings::GetAudioBitrate(bool def) {
-	return def ? DEF_BLURAY_AUDIO_BITRATE : (int) cfg->Read(_T("Generate/BlurayAudioBitrate"),
+	int kbps = def ? DEF_BLURAY_AUDIO_BITRATE : (int) cfg->Read(_T("Generate/BlurayAudioBitrate"),
 			(long) DEF_BLURAY_AUDIO_BITRATE);
+	// SetAudioBitrate() clamps the same range, so a stored outlier can only come
+	// from a damaged settings file and must not reach the encoder
+	if (kbps < 128 || kbps > 640)
+		kbps = DEF_BLURAY_AUDIO_BITRATE;
+	return kbps;
 }
 
 void DiscSettings::SetAudioBitrate(int kbps) {
