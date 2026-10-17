@@ -90,6 +90,15 @@ const wxString DOOMS_CHANGELOG = wxT(
 	"    removed the non-standard 720p50/60 AVCHD branch that PS4 and\n"
 	"    standalone players rejected.\n"
 	"23. Version bumped to 3.3b9.\n"
+	"24. Fixed Blu-ray/AVCHD projects with more than one movie: every title\n"
+	"    now gets its own playlist, clip and stream (tsMuxeR --mplsOffset)\n"
+	"    instead of every title being muxed as 00000, so the second title no\n"
+	"    longer overwrites the first and the build no longer aborts with\n"
+	"    \"tsMuxeR did not add a playlist for this title\".\n"
+	"25. The disc's first-play object now points at the first title (tsMuxeR\n"
+	"    leaves it on the last title it muxed), so a disc without menus starts\n"
+	"    with the first movie instead of the last one added.\n"
+	"26. Version bumped to 3.3b10.\n"
 );
 
 About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,

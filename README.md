@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/build.yml/badge.svg)](https://github.com/drDOOM69GAMING/dvdstyler-appimage/actions/workflows/build.yml)
 
 A custom build of DVDStyler packaged as a portable AppImage for Linux.
-Based on DVDStyler 3.3b4 with improvements, released here as version 3.3b9.
+Based on DVDStyler 3.3b4 with improvements, released here as version 3.3b10.
 
 ## What is this
 
@@ -118,6 +118,17 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     Blu-ray/AVCHD ISO step now uses the bundled `udf250` UDF 2.50 builder and
     excludes the tsMuxeR CERTIFICATE tree for AVCHD playback compatibility
 34. Version bumped to 3.3b9
+35. Fixed Blu-ray/AVCHD authoring of projects with more than one movie: every
+    title now gets its own playlist, clip and stream (tsMuxeR `--mplsOffset` /
+    `--m2tsOffset`, title 0 → `00000`, title 1 → `00001`, ...). Previously every
+    title was multiplexed as `00000`, so the second title overwrote the first
+    one's files and the build aborted with "tsMuxeR did not add a playlist for
+    this title"
+36. Fixed the disc's first-play object: tsMuxeR leaves `BDMV/MovieObject.bdmv`
+    pointing at the last title it muxed, so a multi-title disc started with the
+    last movie added; it is now reset to the first title (this matches the
+    single-title output byte for byte)
+37. Version bumped to 3.3b10
 
 ## Blu-ray / AVCHD playback status
 
@@ -166,8 +177,8 @@ host:
 
 Grab the AppImage from the Releases page, make it executable, and run it:
 
-    chmod +x DVDStyler-3.3b9-x86_64.AppImage
-    ./DVDStyler-3.3b9-x86_64.AppImage
+    chmod +x DVDStyler-3.3b10-x86_64.AppImage
+    ./DVDStyler-3.3b10-x86_64.AppImage
 
 ## Build
 

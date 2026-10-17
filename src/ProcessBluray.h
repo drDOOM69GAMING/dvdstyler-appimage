@@ -62,9 +62,16 @@ private:
 	bool EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir, int videoBitrate, int audioBitrate,
 			wxString& videoFile, wxString& audioFile, double& fps, wxString& chapterList);
 
-	/** Generates a tsMuxeR meta file for one title */
+	/** Generates a tsMuxeR meta file for one title. titleIdx is the 0-based
+	 *  title number, used as the playlist/clip number so that every title gets
+	 *  its own files in the shared BDMV structure instead of overwriting the
+	 *  files of the title before it. */
 	bool SaveTsMuxeRMeta(const wxString& metaFile, const wxString& videoFile, const wxString& audioFile, double fps,
-			const wxString& chapterList);
+			const wxString& chapterList, int titleIdx);
+
+	/** Points the disc's first-play movie object at the first title, so the disc
+	 *  starts with the first video instead of the last one that was authored. */
+	static void PatchFirstPlayObject(const wxString& bdmvRoot);
 
 	/** Formats a time in seconds as HH:MM:SS.mmm */
 	static wxString FormatTime(double seconds);

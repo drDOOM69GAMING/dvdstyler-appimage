@@ -19,6 +19,7 @@
 #include <wx/dynarray.h>
 #include <wx/textfile.h>
 #include <math.h>
+#include <vector>
 
 /** Constructor */
 ProcessBluray::ProcessBluray(ProgressDlg* progressDlg, DVD* dvd, BurnDlg* burnDlg, const wxString& dvdOutDir,
@@ -200,13 +201,20 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	return true;
 }
 
-/** Generates a tsMuxeR meta file for one title */
+/** Generates a tsMuxeR meta file for one title.
+ *  titleIdx is the 0-based title number. tsMuxeR always numbers the playlist,
+ *  clip and stream files from 00000, so without an explicit offset every title
+ *  would overwrite the files of the title before it in the shared BDMV
+ *  structure (and the authoring check would abort with a missing playlist).
+ *  Offsetting each title gives it its own files: title 0 -> 00000, 1 -> 00001. */
 bool ProcessBluray::SaveTsMuxeRMeta(const wxString& metaFile, const wxString& videoFile, const wxString& audioFile,
-		double fps, const wxString& chapterList) {
+		double fps, const wxString& chapterList, int titleIdx) {
 	wxTextFile file;
 	if (!file.Create(metaFile))
 		return false;
 	wxString muxOpt = _T("MUXOPT --no-pcr-on-video-pid --new-audio-pes --blu-ray --vbr");
+	if (titleIdx > 0)
+		muxOpt += wxString::Format(_T(" --mplsOffset=%d --m2tsOffset=%d"), titleIdx, titleIdx);
 	if (chapterList.length()) {
 		wxString chapters = chapterList;
 		wxArrayString parts = wxSplit(chapters, wxT(','));
@@ -277,6 +285,46 @@ bool ProcessBluray::AuthorBdmv(const wxString& metaFile, const wxString& bdmvRoo
 		return false;
 	}
 	return true;
+}
+
+/** Points the disc's first-play movie object at the first title's playlist.
+ *  tsMuxeR rewrites BDMV/MovieObject.bdmv on every run, so after the last title
+ *  it references the last playlist (0000N) and the disc would start with the
+ *  last video that was added. The HDMV first-play "PlayPlayList" command
+ *  (0x42 0x82 followed by the big-endian playlist number) is reset to 00000 so
+ *  playback starts with the first title. A missing pattern is not an error:
+ *  some tsMuxeR builds lay the movie object out differently. */
+void ProcessBluray::PatchFirstPlayObject(const wxString& bdmvRoot) {
+	static const unsigned char playPlayList[4] = { 0x42, 0x82, 0x00, 0x00 };
+	const wxString paths[2] = {
+		bdmvRoot + wxFILE_SEP_PATH + wxT("BDMV") + wxFILE_SEP_PATH + wxT("MovieObject.bdmv"),
+		bdmvRoot + wxFILE_SEP_PATH + wxT("BDMV") + wxFILE_SEP_PATH + wxT("BACKUP") + wxFILE_SEP_PATH
+				+ wxT("MovieObject.bdmv")
+	};
+	for (int i = 0; i < 2; i++) {
+		wxFile file;
+		if (!wxFileExists(paths[i]) || !file.Open(paths[i], wxFile::read_write)) {
+			file.Close();
+			continue;
+		}
+		wxFileOffset length = file.Length();
+		std::vector<unsigned char> data((size_t) (length > 0 ? length : 0));
+		if (length > 8 && length < 1024 * 1024 && (wxFileOffset) file.Read(&data[0], length) == length) {
+			bool changed = false;
+			for (size_t p = 0; p + 8 <= data.size(); p++) {
+				if (data[p] != playPlayList[0] || data[p + 1] != playPlayList[1] || data[p + 2] != playPlayList[2]
+						|| data[p + 3] != playPlayList[3])
+					continue;
+				if (data[p + 4] != 0 || data[p + 5] != 0 || data[p + 6] != 0 || data[p + 7] != 0) {
+					data[p + 4] = data[p + 5] = data[p + 6] = data[p + 7] = 0;
+					changed = true;
+				}
+			}
+			if (changed && file.Seek(0) != wxInvalidOffset)
+				file.Write(&data[0], data.size());
+		}
+		file.Close();
+	}
 }
 
 /** Logs an estimated output size and warns if the content cannot fit the media */
@@ -362,6 +410,12 @@ bool ProcessBluray::Execute() {
 		}
 	}
 	progressDlg->SetSubSteps(vobCount * 200);
+	// tsMuxeR numbers playlists/clips from a 0-based offset and rejects an
+	// --mplsOffset above 1999, so at most 2000 titles can be authored
+	if (vobCount > 2000) {
+		progressDlg->Failed(_("Too many titles for Blu-ray authoring (at most 2000 are supported)."));
+		return false;
+	}
 	// resolve the bitrates once: auto-fit uses the selected media size
 	bool avchd = s_config.Disc.GetMode() == BD_MODE_AVCHD;
 	int videoBitrate = GetVideoBitrate(avchd, GetTotalSeconds());
@@ -391,7 +445,7 @@ bool ProcessBluray::Execute() {
 				if (!EncodeTitle(vob, titleIdx, workDir, videoBitrate, audioBitrate, videoFile, audioFile, titleFps, chapterList))
 					return false;
 				wxString metaFile = workDir + wxString::Format(wxT("bd%02d.meta"), titleIdx);
-				if (!SaveTsMuxeRMeta(metaFile, videoFile, audioFile, titleFps, chapterList)) {
+				if (!SaveTsMuxeRMeta(metaFile, videoFile, audioFile, titleFps, chapterList, titleIdx)) {
 					if (s_config.GetRemoveTempFiles()) {
 						DeleteFile(videoFile);
 						if (audioFile.length())
@@ -424,6 +478,12 @@ bool ProcessBluray::Execute() {
 		progressDlg->Failed(_("There are no titles to encode for Blu-ray."));
 		return false;
 	}
+
+	// tsMuxeR rewrites BDMV/MovieObject.bdmv for every title, so after the last
+	// one the disc's first-play object points at the last movie. Point it back
+	// at the first title so the disc starts with the first video.
+	if (titleIdx > 1)
+		PatchFirstPlayObject(bdmvRoot);
 
 	progressDlg->IncStep();
 	return true;
