@@ -17,7 +17,7 @@ ProcessAskOutput::ProcessAskOutput(ProgressDlg* progressDlg, BurnDlg* burnDlg): 
 
 /** Returns true, if process need be executed */
 bool ProcessAskOutput::IsNeedExecute() {
-	return burnDlg->DoGenerate() && !burnDlg->DoCreateIso() && !burnDlg->DoBurn();
+	return burnDlg->DoGenerate() && !burnDlg->DoCreateIso() && !burnDlg->DoBurn() && progressDlg->IsAutoStart();
 }
 
 /** Returns true, if gauge need be updated */
