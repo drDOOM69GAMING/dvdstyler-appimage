@@ -91,7 +91,7 @@ def retag(body, loc):
 class Node:
     __slots__ = ("path", "name", "is_dir", "size", "blocks", "chunks",
                  "atime", "mtime", "ctime", "attrtime",
-                 "efe_rel", "fid_rel", "link")
+                 "efe_rel", "fid_rel", "fid_len", "fid_blocks", "link")
 
     def __init__(self, path, is_dir, size):
         self.path = path
@@ -312,6 +312,19 @@ def build_fid(name, fchar, icb_loc, tagloc, imp_uid=0):
     return tag(TID_FID, bytes(body), tagloc)
 
 
+def fid_plan(lengths):
+    """Return (fid_len, n_blocks) for a directory's FID sequence.
+
+    The File Identifier Descriptors are stored back to back, exactly as they
+    always were for small directories, so the sequence just needs as many
+    logical blocks as it spans. Directories used to be handed a single block
+    unconditionally, so with 39 or more titles the FID data overflowed into the
+    sectors behind it and the image silently lost its whole directory tree.
+    """
+    total = sum(lengths)
+    return total, (total + SECTOR - 1) // SECTOR
+
+
 # ---------------------------------------------------------------- builder
 def build_udf(src, out_path, label, volset_id=None, app_id="ConvertXToHD.exe 3.0.0.",
               root_time=None, times=None, exclude=()):
@@ -362,11 +375,15 @@ def build_udf(src, out_path, label, volset_id=None, app_id="ConvertXToHD.exe 3.0
 
     def place(d):
         nonlocal rel
+        files_c, dirs_c = sort_children(d.path)
+        lengths = [len(build_fid("", 0x0A, 0, 0))]
+        lengths += [len(build_fid(n.name, 0x00, 0, 0)) for n in files_c]
+        lengths += [len(build_fid(n.name, 0x02, 0, 0)) for n in dirs_c]
+        d.fid_len, d.fid_blocks = fid_plan(lengths)
         d.efe_rel = rel
         rel += 1
         d.fid_rel = rel
-        rel += 1
-        files_c, dirs_c = sort_children(d.path)
+        rel += d.fid_blocks
         for n in files_c:
             n.efe_rel = rel
             rel += 1
@@ -416,22 +433,27 @@ def build_udf(src, out_path, label, volset_id=None, app_id="ConvertXToHD.exe 3.0
     def dir_fid(d):
         files_c, dirs_c = sort_children(d.path)
         parent = node_by_path[_parent(d.path)]
-        out = [build_fid("", 0x0A, parent.efe_rel, d.fid_rel, imp_uid=uid[parent.path])]
+        items = [("", 0x0A, parent.efe_rel, uid[parent.path])]
         for n in files_c:
-            out.append(build_fid(n.name, 0x00, n.efe_rel, d.fid_rel, imp_uid=uid[n.path]))
+            items.append((n.name, 0x00, n.efe_rel, uid[n.path]))
         for n in dirs_c:
-            out.append(build_fid(n.name, 0x02, n.efe_rel, d.fid_rel, imp_uid=uid[n.path]))
-        return b"".join(out)
+            items.append((n.name, 0x02, n.efe_rel, uid[n.path]))
+        out = bytearray()
+        for nm, fc, efe, iu in items:
+            # a FID's descriptor tag belongs to the block it starts in
+            out += build_fid(nm, fc, efe, d.fid_rel + len(out) // SECTOR, imp_uid=iu)
+        assert len(out) == d.fid_len
+        return bytes(out)
 
     def emit(d):
         fid_content = dir_fid(d)
         files_c, dirs_c = sort_children(d.path)
         d.link = 1 + len(dirs_c)
-        ads = struct.pack("<II", len(fid_content), d.fid_rel)
-        meta.append(retag(build_efe(4, 0x20, len(fid_content), 0x14A5, d.link, uid[d.path], 8,
+        ads = struct.pack("<II", d.fid_len, d.fid_rel)
+        meta.append(retag(build_efe(4, 0x20, d.fid_len, 0x14A5, d.link, uid[d.path], 8,
                                     (d.atime, d.mtime, d.ctime, d.attrtime),
-                                    logblks=1, ads=ads), d.efe_rel).ljust(SECTOR, b"\x00"))
-        meta.append(fid_content.ljust(SECTOR, b"\x00"))
+                                    logblks=d.fid_blocks, ads=ads), d.efe_rel).ljust(SECTOR, b"\x00"))
+        meta.append(fid_content.ljust(d.fid_blocks * SECTOR, b"\x00"))
         for n in files_c:
             ads = b""
             for l, loc in n.chunks:
@@ -443,7 +465,8 @@ def build_udf(src, out_path, label, volset_id=None, app_id="ConvertXToHD.exe 3.0
             emit(n)
 
     emit(root)
-    assert len(meta) == content_sectors
+    # a directory may now occupy more than one sector of FIDs, so compare bytes
+    assert sum(len(s) for s in meta) == content_sectors * SECTOR
 
     meta_len = meta_blocks * SECTOR
     meta_file_efe = build_efe(0xFA, 0x20, meta_len, 0x14A5, 0, 0, 8,
