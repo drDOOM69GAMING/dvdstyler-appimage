@@ -164,7 +164,7 @@ AVFrame* allocPicture(AVPixelFormat pix_fmt, int width, int height) {
 	frame->height = height;
 	frame->format = pix_fmt;
 	if (av_frame_get_buffer(frame, 32) < 0) {
-		av_free(frame);
+		av_frame_free(&frame);
 		return NULL;
 	}
 	return frame;
@@ -376,14 +376,21 @@ bool wxFfmpegMediaEncoder::addAudioStream(int codecId) {
 	if (ret < 0)
 		return false;
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 37, 100)
-	for (int i = 0; i < c->ch_layout.nb_channels; i++) {
+	int channels = c->ch_layout.nb_channels;
 #else
-	for (int i = 0; i < c->channels; i++) {
+	int channels = c->channels;
 #endif
-		uint16_t *samples = (uint16_t*)m_audioFrame->data[i];
-		if (samples) {
-		memset(samples, 0, c->frame_size * av_get_bytes_per_sample(c->sample_fmt));
-		}
+	// Silence the frame buffer. Packed (non-planar) formats keep every channel
+	// in data[0], so the whole buffer is nb_samples * bytesPerSample * channels
+	// - zeroing data[0] per channel left the second half of every silent
+	// MP2/AC3 frame holding whatever the allocator left there.
+	int bytesPerSample = av_get_bytes_per_sample(c->sample_fmt);
+	if (av_sample_fmt_is_planar(c->sample_fmt)) {
+		for (int i = 0; i < channels; i++)
+			if (m_audioFrame->data[i])
+				memset(m_audioFrame->data[i], 0, m_audioFrame->nb_samples * bytesPerSample);
+	} else if (m_audioFrame->data[0]) {
+		memset(m_audioFrame->data[0], 0, m_audioFrame->nb_samples * bytesPerSample * channels);
 	}
 
 	return true;
@@ -398,12 +405,14 @@ void wxFfmpegMediaEncoder::CloseAudioEncoder() {
 void wxFfmpegMediaEncoder::CloseVideoEncoder() {
 	if (!m_videoStm)
 		return;
-	if (m_imgConvertCtx)
+	if (m_imgConvertCtx) {
 		sws_freeContext(m_imgConvertCtx);
-	if (m_picture) {
-		av_freep(&m_picture->data[0]);
-		av_freep(&m_picture);
+		m_imgConvertCtx = NULL;
 	}
+	if (m_picture)
+		// av_frame_get_buffer() backed this frame, so it has to be released as
+		// a frame: freeing data[0] by hand leaks the AVBufferRef
+		av_frame_free(&m_picture);
 	av_freep(&m_videoOutbuf);
 	avcodec_free_context(&m_videoCodec);
 	m_videoStm = NULL;
@@ -503,22 +512,30 @@ bool wxFfmpegMediaEncoder::EncodeAudio(double duration, AbstractProgressDialog* 
 		}
 		
 		int64_t pts = 0;
+		bool ok = true;
 		while (true) {
 			double audioPts = ((double) pts) * c->time_base.num /c->time_base.den;
-			if (progressDialog->WasCanceled())
-				return false;
+			if (progressDialog->WasCanceled()) {
+				ok = false;
+				break;
+			}
 			if (audioPts >= duration)
 				break;
 			
 			pts += m_audioFrame->nb_samples;
-			if (encode(c, m_audioFrame, pkt, m_audioFile) < 0)
-				return false;
+			if (encode(c, m_audioFrame, pkt, m_audioFile) < 0) {
+				ok = false;
+				break;
+			}
 		}
 
 		// flush the encoder
-		encode(c, NULL, pkt, m_audioFile);
+		if (ok)
+			encode(c, NULL, pkt, m_audioFile);
 		
 		av_packet_free(&pkt);
+		if (!ok)
+			return false;
 	}
 	return true;
 }
@@ -546,45 +563,53 @@ int encode(AVCodecContext *avctx, AVPacket *pkt, AVFrame *frame, int *got_packet
 
 bool wxFfmpegMediaEncoder::writeAudioFrame() {
 	AVPacket* pkt = av_packet_alloc();
+	if (!pkt) {
+		wxLogError(wxT("Could not allocate the packet"));
+		return false;
+	}
 	AVCodecContext *c = m_audioCodec;
-	
+	bool ok = true;
+
 	m_audioFrame->pts = m_nextAudioPts;
 	m_nextAudioPts += m_audioFrame->nb_samples;
 
 	int got_packet = 0;
 	encode(c, pkt, m_audioFrame, &got_packet);
-	if (!got_packet) {
-		av_packet_unref(pkt);
-		return true;
-	}
+	if (got_packet) {
+		pkt->stream_index = m_audioStm->index;
+		// the encoder stamps packets in the codec time_base (1/sample_rate), but
+		// avformat_write_header sets the mpeg-ps stream time_base to 1/90000.
+		// Without this the audio timestamps are ~1.9x too small and the audio
+		// stream ends at only 48000/90000 of the video length (as the video
+		// packets already are rescaled in writeVideoFrame)
+		av_packet_rescale_ts(pkt, c->time_base, m_audioStm->time_base);
 
-	pkt->stream_index = m_audioStm->index;
-	
-	// write the compressed frame in the media file
-	int ret = av_interleaved_write_frame(m_outputCtx, pkt);
-	if (ret < 0) {
-		av_packet_unref(pkt);
-		print_error("Error while writing audio frame", ret);
-		return false;
+		// write the compressed frame in the media file
+		int ret = av_interleaved_write_frame(m_outputCtx, pkt);
+		if (ret < 0) {
+			print_error("Error while writing audio frame", ret);
+			ok = false;
+		}
 	}
-	av_packet_unref(pkt);
-	return true;
+	av_packet_free(&pkt);
+	return ok;
 }
 
 bool wxFfmpegMediaEncoder::writeVideoFrame() {
 	AVCodecContext *c = m_videoCodec;
-	
+
 	// encode the image
 	m_picture->pts = m_nextVideoPts++;
 	AVPacket* pkt = av_packet_alloc();
-	pkt->data = m_videoOutbuf;
-	pkt->size = VIDEO_BUF_SIZE;
-	
+	if (!pkt) {
+		wxLogError(wxT("Could not allocate the packet"));
+		return false;
+	}
 	int got_packet = 0;
 	int ret = encode(c, pkt, m_picture, &got_packet);
 	if (ret < 0) {
-		av_packet_unref(pkt);
 		print_error("Error while writing video frame", ret);
+		av_packet_free(&pkt);
 		return false;
 	}
 	if (got_packet) {
@@ -593,16 +618,16 @@ bool wxFfmpegMediaEncoder::writeVideoFrame() {
 		if (pkt->dts != (int64_t) AV_NOPTS_VALUE)
 			pkt->dts = av_rescale_q(pkt->dts, c->time_base, m_videoStm->time_base);
 		pkt->stream_index = m_videoStm->index;
-		
+
 		// write the compressed frame in the media file
 		ret = av_interleaved_write_frame(m_outputCtx, pkt);
 		if (ret < 0) {
-			av_packet_unref(pkt);
 			print_error("Error while writing video frame", ret);
+			av_packet_free(&pkt);
 			return false;
 		}
 	}
-	av_packet_unref(pkt);
+	av_packet_free(&pkt);
 	return true;
 }
 
@@ -621,21 +646,28 @@ void wxFfmpegMediaEncoder::EndEncode() {
 }
 
 void wxFfmpegMediaEncoder::CloseEncoder() {
-	if (!m_outputCtx)
+	if (!m_outputCtx) {
+		// audio-only encoding never allocates an output context, but the file
+		// handle and the codec context still have to be released when the
+		// encoder is destroyed without EndEncode() (the error paths)
+		if (m_audioFile != NULL) {
+			fclose(m_audioFile);
+			m_audioFile = NULL;
+		}
+		CloseAudioEncoder();
+		CloseVideoEncoder();
 		return;
+	}
 
 	CloseVideoEncoder();
 	CloseAudioEncoder();
-	
-	// free the streams
-	for (unsigned int i = 0; i < m_outputCtx->nb_streams; i++) {
-		av_freep(&m_outputCtx->streams[i]);
-	}
 
-	// close the output file
+	// close the output file first, then let avformat_free_context release the
+	// streams (codecpar/priv_data/metadata), the muxer's private state and the
+	// context itself - av_freep on the individual pointers leaked all of them
 	if (m_outputCtx->pb != NULL)
 		avio_close(m_outputCtx->pb);
-	
-	// free the stream
-	av_freep(&m_outputCtx);
+
+	avformat_free_context(m_outputCtx);
+	m_outputCtx = NULL;
 }
