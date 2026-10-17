@@ -212,7 +212,12 @@ bool ProcessBluray::SaveTsMuxeRMeta(const wxString& metaFile, const wxString& vi
 	wxTextFile file;
 	if (!file.Create(metaFile))
 		return false;
-	wxString muxOpt = _T("MUXOPT --no-pcr-on-video-pid --new-audio-pes --blu-ray --vbr");
+	// tsMuxeR checks for "--blu-ray" before "--avchd", so AVCHD must not emit
+	// --blu-ray at all: emitting it always made AVCHD projects mux as Blu-ray
+	// (v2/v3 descriptors plus META/BDJO/JAR), which players reject on DVD media.
+	bool avchd = s_config.Disc.GetMode() == BD_MODE_AVCHD;
+	wxString muxOpt = wxString::Format(_T("MUXOPT --no-pcr-on-video-pid --new-audio-pes %s --vbr"),
+			avchd ? _T("--avchd") : _T("--blu-ray"));
 	if (titleIdx > 0)
 		muxOpt += wxString::Format(_T(" --mplsOffset=%d --m2tsOffset=%d"), titleIdx, titleIdx);
 	if (chapterList.length()) {
@@ -223,10 +228,12 @@ bool ProcessBluray::SaveTsMuxeRMeta(const wxString& metaFile, const wxString& vi
 			double t = 0;
 			parts[i].ToDouble(&t);
 			if (chapterStr.length())
-				chapterStr += wxT(",");
+				chapterStr += wxT(";");
 			chapterStr += FormatTime(t);
 		}
-		muxOpt += _T(" --chapter=\"") + chapterStr + _T("\"");
+		// tsMuxeR only knows --custom-chapters (semicolon separated, no spaces);
+		// an unknown option is silently ignored, so --chapter dropped all chapters
+		muxOpt += _T(" --custom-chapters=") + chapterStr;
 	}
 	file.AddLine(muxOpt);
 	file.AddLine(wxString::Format(_T("V_MPEG4/ISO/AVC, \"%s\", fps=%g, insertSEI, contSPS"), videoFile.c_str(), fps));
