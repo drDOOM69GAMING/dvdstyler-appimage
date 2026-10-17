@@ -97,6 +97,13 @@ public:
 		return m_shutdown->IsChecked();
 	}
 
+	/** Returns true, when the process was started without the burn dialog (command
+	  * line or drag & drop). In that case the output action comes from the saved
+	  * defaults and was never confirmed by the user, so it still has to be asked. */
+	bool IsAutoStart() {
+		return m_autoStart;
+	}
+
 private:
 	//(*Declarations(ProgressDlg)
 	wxCheckBox* m_shutdown;

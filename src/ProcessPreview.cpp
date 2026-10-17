@@ -82,7 +82,10 @@ Please open the following directory with your favorite DVD player: ");
 			wxMessageBox(msg, _("Burn"), wxOK|wxICON_ERROR, progressDlg);
 		}
 	}
-	if (burnDlg->DoBurn() || burnDlg->DoCreateIso()) {
+	// In auto-start mode the action was taken from the saved defaults and was never
+	// confirmed by the user, so ask once. When the user has just chosen the output
+	// in the burn dialog there is nothing left to confirm.
+	if (progressDlg->IsAutoStart() && (burnDlg->DoBurn() || burnDlg->DoCreateIso())) {
 		wxString msg = burnDlg->DoBurn() ? _("Do you want to burn this video to DVD?") : _("Do you want to create an iso image of this video?");
 		if (wxMessageBox(msg, _("Burn"), wxYES_NO|wxICON_QUESTION, progressDlg) == wxNO) {
 			progressDlg->AddSummaryMsg(_("Aborted"), wxEmptyString, *wxRED);
