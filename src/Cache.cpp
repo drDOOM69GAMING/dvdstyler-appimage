@@ -139,10 +139,10 @@ bool CacheEntry::PutXML(wxSvgXmlNode* node) {
 	}
 	double dval;
 	if (node->GetPropVal(wxT("startTime"), &val) && val.ToDouble(&dval)) {
-		m_startTime = lval;
+		m_startTime = dval;
 	}
 	if (node->GetPropVal(wxT("recordingTime"), &val) && val.ToDouble(&dval)) {
-		m_recordingTime = lval;
+		m_recordingTime = dval;
 	}
 	node->GetPropVal(wxT("videoFilters"), &m_videoFilters);
 	node->GetPropVal(wxT("audioFilters"), &m_audioFilters);
@@ -358,11 +358,14 @@ void Cache::Save() {
  */
 void Cache::ShowClearPrompt(wxWindow* parent) {
 	// check entries
-	for (CacheSet::iterator it = m_cacheSet.begin(); it != m_cacheSet.end(); it++) {
+	// erase() invalidates it, so incrementing it afterwards is undefined
+	// behaviour: erase must hand its return value back to the loop
+	for (CacheSet::iterator it = m_cacheSet.begin(); it != m_cacheSet.end();) {
 		wxString filename = GetFileName(it->GetIdx());
-		if (!wxFile::Exists(filename)) {
-			m_cacheSet.erase(it);
-		}
+		if (!wxFile::Exists(filename))
+			it = m_cacheSet.erase(it);
+		else
+			++it;
 	}
 	if (GetCount() == 0) {
 		Save();
