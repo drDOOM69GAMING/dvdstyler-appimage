@@ -98,14 +98,21 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 			(HdProfile::Quality) s_config.Video.GetHdQuality(), videoBitrate);
 	int gop = GetGopSize(fps, profile.gopSeconds);
 
+	// GPU encoding is used when the user explicitly asked for it, or - with the
+	// automatic default - when the driver probe confirms that the encoder really
+	// works. A failed GPU run falls back to the CPU encoder below, so a driver
+	// problem can never break the build.
+	bool gpuEncode = s_config.GetUseVAAPI()
+			&& (s_config.GetUseVAAPIEncode()
+					|| (s_config.GetUseVAAPIEncodeAuto() && IsVaapiH264EncodeAvailable()));
+
+	// build the ffmpeg command; built twice on a GPU failure (GPU, then CPU)
+	auto buildCmd = [&](bool useVaapiEncode) -> wxString {
 	// build ffmpeg command
 	wxString cmd = s_config.GetAVConvCmd();
 	cmd += wxT(" -y");
-	// VA-API: decode on the GPU always when enabled; encode on the GPU too when
-	// the user opted in (h264_vaapi is faster but not strictly Blu-ray compliant)
-	bool useVaapiEncode = s_config.GetUseVAAPI() && s_config.GetUseVAAPIEncode();
 	if (useVaapiEncode) {
-		cmd += wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128 -hwaccel vaapi -hwaccel_device va -hwaccel_output_format vaapi");
+		cmd += wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128 -hwaccel vaapi -hwaccel_device va -hwaccel_output_format yuv420p");
 	} else if (s_config.GetUseVAAPI()) {
 		cmd += wxT(" -hwaccel vaapi -hwaccel_output_format yuv420p");
 	}
@@ -123,20 +130,22 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	// the frame. HD content must be BT.709; upscaled SD content is converted
 	// from BT.601 so colors stay correct on standalone players.
 	wxString vf;
-	if (useVaapiEncode) {
-		vf = wxString::Format(
-				wxT("scale_vaapi=%d:%d:force_original_aspect_ratio=decrease,pad_vaapi=%d:%d:(ow-iw)/2:(oh-ih)/2"), width, height, width, height);
-	} else {
-		vf = wxString::Format(
-				wxT("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2"), width, height, width, height);
-		Stream* videoStream = vob->GetVideoStream();
-		if (videoStream && videoStream->GetSourceVideoSize().GetHeight() > 0
-				&& videoStream->GetSourceVideoSize().GetHeight() <= 576)
-			vf = wxT("colormatrix=bt601:bt709,") + vf;
-		vf += wxT(",format=yuv420p");
-	}
-	cmd += wxT(" -vf \"") + vf + wxT("\"");
-	cmd += wxT(" -r ") + GetFpsStr(fps);
+	Stream* videoStream = vob->GetVideoStream();
+	if (videoStream && videoStream->GetSourceVideoSize().GetHeight() > 0
+			&& videoStream->GetSourceVideoSize().GetHeight() <= 576)
+		vf = wxT("colormatrix=bt601:bt709,");
+	if (useVaapiEncode)
+		// the frame rate is converted on the CPU: ffmpeg's fps filter cannot run
+		// on GPU frames, and an output -r would make ffmpeg insert a conversion
+		// that breaks the upload/encoder chain. The software filters then hand
+		// the frames back to the GPU for encoding.
+		vf += wxString::Format(wxT("fps=%s,"), GetFpsStr(fps));
+	vf += wxString::Format(
+			wxT("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2"),
+			width, height, width, height);
+	cmd += wxT(" -vf \"") + vf + (useVaapiEncode ? wxT(",format=nv12,hwupload\"") : wxT(",format=yuv420p\""));
+	if (!useVaapiEncode)
+		cmd += wxT(" -r ") + GetFpsStr(fps);
 	cmd += wxT(" -map 0:v:0");
 	if (useVaapiEncode) {
 		// GPU encode: no bluray_compat/slices support in h264_vaapi, so these
@@ -189,9 +198,26 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 		cmd += wxT(" -vn \"") + audioFile + wxT("\"");
 	}
 
+	return cmd;
+	};	// end of buildCmd
+
 	// run ffmpeg (single pass, video + audio elementary streams)
-	AVConvExecute exec(progressDlg, lround(vob->GetDuration() * fps));
-	if (!exec.Execute(cmd)) {
+	bool encoded = false;
+	{
+		AVConvExecute exec(progressDlg, lround(vob->GetDuration() * fps));
+		encoded = exec.Execute(buildCmd(gpuEncode));
+	}
+	if (!encoded && gpuEncode && !progressDlg->WasCanceled()) {
+		// a broken VA-API driver must not fail the whole build
+		progressDlg->AddDetailMsg(_("GPU encoding failed, retrying with the CPU encoder"));
+		if (wxFileExists(videoFile))
+			wxRemoveFile(videoFile);
+		if (wxFileExists(audioFile))
+			wxRemoveFile(audioFile);
+		AVConvExecute exec(progressDlg, lround(vob->GetDuration() * fps));
+		encoded = exec.Execute(buildCmd(false));
+	}
+	if (!encoded) {
 		if (wxFileExists(videoFile))
 			wxRemoveFile(videoFile);
 		if (wxFileExists(audioFile))

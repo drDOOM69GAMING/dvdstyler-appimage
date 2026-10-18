@@ -11,6 +11,7 @@
 #include "SettingsDlg.h"
 #include "Config.h"
 #include "Languages.h"
+#include "SysUtils.h"
 #include "DVD.h"
 #include "MenuObject.h"
 #include "Cache.h"
@@ -285,7 +286,10 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	AddText(coreGrid, _("Use hardware video decoding (VA-API)"));
 	AddCheckProp(coreGrid, wxT(""), s_config.GetUseVAAPI(def));
 	AddText(coreGrid, _("Use hardware video encoding (VA-API)"));
-	AddCheckProp(coreGrid, wxT(""), s_config.GetUseVAAPIEncode(def));
+	bool gpuEncode = s_config.GetUseVAAPI(def)
+			&& (s_config.GetUseVAAPIEncode(def)
+					|| (s_config.GetUseVAAPIEncodeAuto(def) && IsVaapiH264EncodeAvailable()));
+	AddCheckProp(coreGrid, wxT(""), gpuEncode);
 	AddText(coreGrid, _("DVD reserved space:"));
 	AddSpinProp(coreGrid, wxT(""), s_config.GetDvdReservedSpace(def), 0, 9999999, 80, _("KB"), false);
 	
@@ -456,6 +460,8 @@ bool SettingsDlg::SetValues() {
 	s_config.SetThreadCount(GetInt(i++));
 	s_config.SetUseVAAPI(GetBool(i++));
 	s_config.SetUseVAAPIEncode(GetBool(i++));
+	// an explicit choice in the settings replaces the automatic probe
+	s_config.SetUseVAAPIEncodeAuto(false);
 	s_config.SetDvdReservedSpace(GetInt(i++));
 	wxString encoder = GetInt(i++) > 0 ? GetString(i - 1) : wxT("");
 	s_config.SetEncoder(encoder);

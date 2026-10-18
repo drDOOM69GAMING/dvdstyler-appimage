@@ -11,6 +11,7 @@
 #include "NewProjectDlg.h"
 #include "DVD.h"
 #include "Config.h"
+#include "SysUtils.h"
 
 enum {
 	DVD_RESOLUTION_CHOICE_ID = 7900,
@@ -23,8 +24,10 @@ END_EVENT_TABLE()
 NewProjectDlg::NewProjectDlg(wxWindow *parent, bool create): wxPropDlg(parent) {
 	propIndex = 0;
 	m_hdModeGroupIdx = -1;
+	m_encGroupIdx = -1;
 	m_capacityIdx = -1;
 	m_resolutionIdx = -1;
+	m_dvdPanelEndIdx = -1;
 	m_propDvd = NULL;
 	if (create) {
 		Create();
@@ -147,6 +150,34 @@ void NewProjectDlg::CreateDVDPropPanel(wxSizer* sizer, DVD* dvd) {
 		for (int i = 0; i < (int) radioControls->GetCount(); i++)
 			((wxRadioButton*) (*radioControls)[i])->Bind(wxEVT_RADIOBUTTON, &NewProjectDlg::OnChangeHdMode, this);
 	}
+
+	// Video encoding device for the HD output. The GPU choice is preselected when
+	// the VA-API probe says the driver can encode, but it can be forced off; the
+	// HD pipeline retries on the CPU should the GPU encoder fail at run time.
+	bool gpuEncode = s_config.GetUseVAAPI()
+			&& (s_config.GetUseVAAPIEncode()
+					|| (s_config.GetUseVAAPIEncodeAuto() && IsVaapiH264EncodeAvailable()));
+	AddText(grid, _("Video encoding:"));
+	wxSizer* encPane = BeginGroup(grid, wxT(""));
+	wxSizer* encSizer = NULL;
+	if (encPane) {
+		encSizer = new wxBoxSizer(wxVERTICAL);
+		encPane->Add(encSizer, 1, wxEXPAND, 0);
+	}
+	labels.clear();
+	labels.Add(_("CPU (x264)"));
+	labels.Add(_("GPU (VA-API)"));
+	AddRadioGroupProp(encSizer, labels, gpuEncode ? 1 : 0);
+	EndGroup();
+	m_encGroupIdx = GetLastControlIndex();
+	if (sizer && !gpuEncode) {
+		// grey out the GPU choice when the driver cannot encode
+		wxArrayPtrVoid* radioControls = (wxArrayPtrVoid*) m_controls[m_encGroupIdx];
+		if (radioControls->GetCount() > 1)
+			((wxRadioButton*) (*radioControls)[1])->Enable(false);
+	}
+
+	m_dvdPanelEndIdx = GetLastControlIndex();
 	UpdateCapacityChoices();
 	if (m_resolutionIdx >= 0)
 		UpdateResolutionIcon(((wxChoice*) GetControl(m_resolutionIdx))->GetSelection());
@@ -304,6 +335,14 @@ void NewProjectDlg::PersistHdSettings() {
 		if (!s_config.GetAllowHdTitles())
 			s_config.SetAllowHdTitles(true);
 	}
+	// video encoding device: an explicit choice wins over the automatic probe
+	if (m_encGroupIdx >= 0) {
+		bool gpu = GetInt(m_encGroupIdx) == 1;
+		s_config.SetUseVAAPIEncode(gpu);
+		s_config.SetUseVAAPIEncodeAuto(false);
+		if (gpu && !s_config.GetUseVAAPI())
+			s_config.SetUseVAAPI(true);
+	}
 	s_config.Flush();
 }
 
@@ -351,6 +390,7 @@ DefaultPostCommand NewProjectDlg::GetDefPostCommand() {
 }
 
 bool NewProjectDlg::IsNoMenu() {
-	int i2 = GetHdOffset();
-	return GetBool(propIndex + i2 + 10);
+	// the "Create DVD without menus" check is added directly after the project
+	// panel, so its index follows the last panel control
+	return m_dvdPanelEndIdx >= 0 ? GetBool(m_dvdPanelEndIdx + 1) : false;
 }

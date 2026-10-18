@@ -360,3 +360,29 @@ void EnumDevices(wxArrayString& devices, wxComboBox* deviceChoice) {
 	}
 }
 #endif //!HAVE_LIBUDEV && !__WXMSW__
+
+bool IsVaapiH264EncodeAvailable() {
+#ifdef __WXMSW__
+	return false;
+#else
+	static int available = -1;
+	if (available < 0) {
+		available = 0;
+		if (wxFileExists(wxT("/dev/dri/renderD128"))) {
+			// The encoder being compiled in is not enough: the render node must
+			// open and the driver must produce frames. Probe with the same
+			// upload path the HD pipeline uses, so a positive answer means the
+			// real encode will work too.
+			wxArrayString output;
+			wxString cmd = s_config.GetAVConvCmd()
+					+ wxT(" -hide_banner -loglevel error -y")
+					+ wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128")
+					+ wxT(" -f lavfi -i color=c=black:s=1280x720:r=25 -frames:v 3")
+					+ wxT(" -vf \"format=nv12,hwupload\" -c:v h264_vaapi -b:v 2000k -f null -");
+			if (wxExecute(cmd, output, wxEXEC_SYNC | wxEXEC_NODISABLE | wxEXEC_HIDE_CONSOLE) == 0)
+				available = 1;
+		}
+	}
+	return available == 1;
+#endif
+}

@@ -66,7 +66,7 @@ bool DVDPropDlg::SetValues() {
 	if (!Validate())
 		return false;
 	PersistHdSettings();
-	int n = m_resolutionIdx >= 0 ? 11 : 10;
+	int n = m_dvdPanelEndIdx >= 0 ? m_dvdPanelEndIdx + 1 : (s_config.GetAllowHdTitles() ? 12 : 11);
 	if (GetString(n).length() > 0) {
 		DVDAction action;
 		action.SetCustom(GetString(n));

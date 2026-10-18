@@ -105,7 +105,16 @@ ProgressDlg::ProgressDlg(MainWin* parent, Cache* cache, bool autoStart) {
 	btSizer->Add(m_cancelBt, 0, wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
 	mainSizer->Add(btSizer, 0, wxALL|wxEXPAND, 8);
 	SetSizer(mainSizer);
-	SetSizer(mainSizer);
+	Layout();
+	// keep the dialog only as wide as its controls need (the button row) so it
+	// does not open as a wide slab; the 600 pixel height is unchanged
+	wxSize minSize = mainSizer->GetMinSize();
+	int dialogWidth = minSize.GetWidth();
+	if (dialogWidth < 320)
+		dialogWidth = 320;
+	else if (dialogWidth > 600)
+		dialogWidth = 600;
+	SetClientSize(wxSize(dialogWidth, 600));
 	Layout();
 	Center();
 

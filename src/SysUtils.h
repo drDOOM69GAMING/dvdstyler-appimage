@@ -51,6 +51,13 @@ const size_t TITLE_NAME_LEN = DISC_LABEL_LEN_ISO;
   * nor produce a disc label that the mastering tools reject. */
 wxString ClipTitleName(const wxString& name, size_t maxLen = TITLE_NAME_LEN);
 
+/** Checks whether the VA-API H.264 encoder can actually be used: a render node
+  * must exist, the driver must open it and ffmpeg must produce frames with the
+  * same hardware upload path the Blu-ray/AVCHD pipeline uses. Compiled-in
+  * encoder support alone is not enough, so this is a real (cached) probe.
+  * Always false on platforms without VA-API. */
+bool IsVaapiH264EncodeAvailable();
+
 /** System Manager interface */
 class SystemManager {
 public:

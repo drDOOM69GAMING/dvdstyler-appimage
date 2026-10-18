@@ -60,8 +60,10 @@ protected:
 	void PersistHdSettings();
 	
 	int m_hdModeGroupIdx;	/**< index of the HD output radio group, -1 if not created */
+	int m_encGroupIdx;		/**< index of the CPU/GPU radio group, -1 if not created */
 	int m_capacityIdx;		/**< index of the capacity/media-size choice, -1 if not created */
 	int m_resolutionIdx;	/**< index of the resolution choice, -1 if not created */
+	int m_dvdPanelEndIdx;	/**< index of the last control of the project panel, -1 if unknown */
 	DVD* m_propDvd;			/**< project being edited, NULL when creating a new one */
 	DECLARE_EVENT_TABLE()
 };
