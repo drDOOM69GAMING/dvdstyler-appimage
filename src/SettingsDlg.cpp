@@ -286,10 +286,7 @@ void SettingsDlg::CreatePropPanel(wxSizer* sizer) {
 	AddText(coreGrid, _("Use hardware video decoding (VA-API)"));
 	AddCheckProp(coreGrid, wxT(""), s_config.GetUseVAAPI(def));
 	AddText(coreGrid, _("Use hardware video encoding (VA-API)"));
-	bool gpuEncode = s_config.GetUseVAAPI(def)
-			&& (s_config.GetUseVAAPIEncode(def)
-					|| (s_config.GetUseVAAPIEncodeAuto(def) && IsVaapiH264EncodeAvailable()));
-	AddCheckProp(coreGrid, wxT(""), gpuEncode);
+	AddCheckProp(coreGrid, wxT(""), UseVaapiH264Encode());
 	AddText(coreGrid, _("DVD reserved space:"));
 	AddSpinProp(coreGrid, wxT(""), s_config.GetDvdReservedSpace(def), 0, 9999999, 80, _("KB"), false);
 	

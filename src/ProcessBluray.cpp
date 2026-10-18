@@ -102,9 +102,7 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	// automatic default - when the driver probe confirms that the encoder really
 	// works. A failed GPU run falls back to the CPU encoder below, so a driver
 	// problem can never break the build.
-	bool gpuEncode = s_config.GetUseVAAPI()
-			&& (s_config.GetUseVAAPIEncode()
-					|| (s_config.GetUseVAAPIEncodeAuto() && IsVaapiH264EncodeAvailable()));
+	bool gpuEncode = UseVaapiH264Encode();
 
 	// build the ffmpeg command; built twice on a GPU failure (GPU, then CPU)
 	auto buildCmd = [&](bool useVaapiEncode) -> wxString {
@@ -112,7 +110,10 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 	wxString cmd = s_config.GetAVConvCmd();
 	cmd += wxT(" -y");
 	if (useVaapiEncode) {
-		cmd += wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128 -hwaccel vaapi -hwaccel_device va -hwaccel_output_format yuv420p");
+		// the encoder needs the VA-API device; decode there as well when enabled
+		cmd += wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128");
+		if (s_config.GetUseVAAPI())
+			cmd += wxT(" -hwaccel vaapi -hwaccel_device va -hwaccel_output_format yuv420p");
 	} else if (s_config.GetUseVAAPI()) {
 		cmd += wxT(" -hwaccel vaapi -hwaccel_output_format yuv420p");
 	}
@@ -444,6 +445,13 @@ bool ProcessBluray::Execute() {
 		}
 	}
 	progressDlg->SetSubSteps(vobCount * 200);
+	// say which encoder the titles will use: helpful when a driver problem
+	// silently pushed the build to the CPU
+	if (UseVaapiH264Encode())
+		progressDlg->AddDetailMsg(_("Video encoding: VA-API hardware encoder (GPU)"));
+	else if (s_config.GetUseVAAPIEncodeAuto() && !s_config.GetUseVAAPIEncode()
+			&& GetVaapiEncodeProbeError().length())
+		progressDlg->AddDetailMsg(_("Video encoding: CPU (GPU unavailable: ") + GetVaapiEncodeProbeError() + wxT(")"));
 	// tsMuxeR numbers playlists/clips from a 0-based offset and rejects an
 	// --mplsOffset above 1999, so at most 2000 titles can be authored
 	if (vobCount > 2000) {

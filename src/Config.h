@@ -17,6 +17,7 @@
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include "Utils.h"
+#include "SysUtils.h"
 #include "HdProfile.h"
 
 const wxString DEF_VERSION		= wxT("");
@@ -59,7 +60,9 @@ const int DEF_THREAD_COUNT = wxThread::GetCPUCount() > 0 ? wxThread::GetCPUCount
 #ifdef __WXMSW__
 	const bool DEF_USE_VAAPI = false;
 #else
-	#define DEF_USE_VAAPI (wxFileExists(wxT("/dev/dri/renderD128")))
+	// note: the render node is a character device, so wxFileExists() cannot be
+	// used here (it only accepts regular files)
+	#define DEF_USE_VAAPI (HasVaapiRenderNode())
 #endif
 const int DEF_DVD_RESERVED_SPACE = 0; // KB
 #ifdef __WXMSW__

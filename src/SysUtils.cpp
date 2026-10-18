@@ -13,6 +13,9 @@
 #include <wx/dir.h>
 #include <wx/progdlg.h>
 #include <wx/log.h>
+#ifndef __WXMSW__
+#include <sys/stat.h>
+#endif
 
 #ifdef __WXMSW__
 #include <wx/msw/wrapwin.h>
@@ -361,6 +364,23 @@ void EnumDevices(wxArrayString& devices, wxComboBox* deviceChoice) {
 }
 #endif //!HAVE_LIBUDEV && !__WXMSW__
 
+static wxString s_vaapiProbeError;
+
+bool HasVaapiRenderNode() {
+#ifdef __WXMSW__
+	return false;
+#else
+	// wxFileExists() cannot be used here: it only accepts regular files and the
+	// DRM render node is a character device
+	struct stat st;
+	return stat("/dev/dri/renderD128", &st) == 0 && S_ISCHR(st.st_mode);
+#endif
+}
+
+const wxString& GetVaapiEncodeProbeError() {
+	return s_vaapiProbeError;
+}
+
 bool IsVaapiH264EncodeAvailable() {
 #ifdef __WXMSW__
 	return false;
@@ -368,21 +388,35 @@ bool IsVaapiH264EncodeAvailable() {
 	static int available = -1;
 	if (available < 0) {
 		available = 0;
-		if (wxFileExists(wxT("/dev/dri/renderD128"))) {
-			// The encoder being compiled in is not enough: the render node must
-			// open and the driver must produce frames. Probe with the same
-			// upload path the HD pipeline uses, so a positive answer means the
-			// real encode will work too.
-			wxArrayString output;
-			wxString cmd = s_config.GetAVConvCmd()
-					+ wxT(" -hide_banner -loglevel error -y")
-					+ wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128")
-					+ wxT(" -f lavfi -i color=c=black:s=1280x720:r=25 -frames:v 3")
-					+ wxT(" -vf \"format=nv12,hwupload\" -c:v h264_vaapi -b:v 2000k -f null -");
-			if (wxExecute(cmd, output, wxEXEC_SYNC | wxEXEC_NODISABLE | wxEXEC_HIDE_CONSOLE) == 0)
-				available = 1;
+		if (!HasVaapiRenderNode()) {
+			s_vaapiProbeError = wxT("no DRM render node (/dev/dri/renderD128)");
+			return false;
+		}
+		// The encoder being compiled in is not enough: the driver must open the
+		// device and produce frames. Probe with the same upload path the HD
+		// pipeline uses, so a positive answer means the real encode works too.
+		wxArrayString output;
+		wxString cmd = s_config.GetAVConvCmd()
+				+ wxT(" -hide_banner -loglevel error -y")
+				+ wxT(" -init_hw_device vaapi=va:/dev/dri/renderD128")
+				+ wxT(" -f lavfi -i color=c=black:s=1280x720:r=25 -frames:v 3")
+				+ wxT(" -vf \"format=nv12,hwupload\" -c:v h264_vaapi -b:v 2000k -f null -");
+		int rc = wxExecute(cmd, output, wxEXEC_SYNC | wxEXEC_NODISABLE | wxEXEC_HIDE_CONSOLE);
+		if (rc == 0)
+			available = 1;
+		else {
+			for (size_t i = 0; i < output.GetCount() && s_vaapiProbeError.length() == 0; i++)
+				if (output[i].Trim().length())
+					s_vaapiProbeError = output[i].Trim();
+			if (s_vaapiProbeError.length() == 0)
+				s_vaapiProbeError = wxString::Format(wxT("ffmpeg exit code %d"), rc);
 		}
 	}
 	return available == 1;
 #endif
+}
+
+bool UseVaapiH264Encode() {
+	return s_config.GetUseVAAPIEncode()
+			|| (s_config.GetUseVAAPIEncodeAuto() && IsVaapiH264EncodeAvailable());
 }

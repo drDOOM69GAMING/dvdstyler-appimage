@@ -51,12 +51,26 @@ const size_t TITLE_NAME_LEN = DISC_LABEL_LEN_ISO;
   * nor produce a disc label that the mastering tools reject. */
 wxString ClipTitleName(const wxString& name, size_t maxLen = TITLE_NAME_LEN);
 
+/** Checks whether the DRM render node (/dev/dri/renderD128) is there. Note that
+  * wxFileExists() must not be used for it: the node is a character device and
+  * wxFileExists() only accepts regular files, which made VA-API look
+  * unavailable on every system. */
+bool HasVaapiRenderNode();
+
 /** Checks whether the VA-API H.264 encoder can actually be used: a render node
   * must exist, the driver must open it and ffmpeg must produce frames with the
   * same hardware upload path the Blu-ray/AVCHD pipeline uses. Compiled-in
   * encoder support alone is not enough, so this is a real (cached) probe.
   * Always false on platforms without VA-API. */
 bool IsVaapiH264EncodeAvailable();
+
+/** Reason why the VA-API encode probe failed (empty while it succeeds). */
+const wxString& GetVaapiEncodeProbeError();
+
+/** True when HD titles should be encoded with the VA-API hardware encoder:
+  * either requested explicitly, or - the default - when the probe shows that
+  * the driver can really encode. */
+bool UseVaapiH264Encode();
 
 /** System Manager interface */
 class SystemManager {

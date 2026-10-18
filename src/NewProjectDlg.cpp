@@ -151,12 +151,10 @@ void NewProjectDlg::CreateDVDPropPanel(wxSizer* sizer, DVD* dvd) {
 			((wxRadioButton*) (*radioControls)[i])->Bind(wxEVT_RADIOBUTTON, &NewProjectDlg::OnChangeHdMode, this);
 	}
 
-	// Video encoding device for the HD output. The GPU choice is preselected when
-	// the VA-API probe says the driver can encode, but it can be forced off; the
-	// HD pipeline retries on the CPU should the GPU encoder fail at run time.
-	bool gpuEncode = s_config.GetUseVAAPI()
-			&& (s_config.GetUseVAAPIEncode()
-					|| (s_config.GetUseVAAPIEncodeAuto() && IsVaapiH264EncodeAvailable()));
+	// Video encoding device for the HD output: the GPU choice is preselected when
+	// the VA-API probe says the driver can encode, but it stays selectable either
+	// way - a forced GPU choice is retried on the CPU at run time.
+	bool gpuEncode = UseVaapiH264Encode();
 	AddText(grid, _("Video encoding:"));
 	wxSizer* encPane = BeginGroup(grid, wxT(""));
 	wxSizer* encSizer = NULL;
@@ -170,11 +168,13 @@ void NewProjectDlg::CreateDVDPropPanel(wxSizer* sizer, DVD* dvd) {
 	AddRadioGroupProp(encSizer, labels, gpuEncode ? 1 : 0);
 	EndGroup();
 	m_encGroupIdx = GetLastControlIndex();
-	if (sizer && !gpuEncode) {
-		// grey out the GPU choice when the driver cannot encode
+	if (sizer && m_encGroupIdx >= 0 && !gpuEncode) {
+		// the probe failed: the choice stays usable, but say why the GPU is not
+		// preselected
 		wxArrayPtrVoid* radioControls = (wxArrayPtrVoid*) m_controls[m_encGroupIdx];
-		if (radioControls->GetCount() > 1)
-			((wxRadioButton*) (*radioControls)[1])->Enable(false);
+		if (radioControls->GetCount() > 1 && GetVaapiEncodeProbeError().length())
+			((wxRadioButton*) (*radioControls)[1])->SetToolTip(
+					_("The VA-API encoder could not be started: ") + GetVaapiEncodeProbeError());
 	}
 
 	m_dvdPanelEndIdx = GetLastControlIndex();
