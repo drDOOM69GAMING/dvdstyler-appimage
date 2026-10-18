@@ -104,17 +104,23 @@ ProgressDlg::ProgressDlg(MainWin* parent, Cache* cache, bool autoStart) {
 	m_cancelBt = new wxButton(this, wxID_CANCEL, _("Cancel"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("wxID_CANCEL"));
 	btSizer->Add(m_cancelBt, 0, wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
 	mainSizer->Add(btSizer, 0, wxALL|wxEXPAND, 8);
+	// the details button switches between "Hide details" and "Show details >>",
+	// so set the longer label before measuring: the whole button row (including
+	// the minimize and cancel buttons) has to be visible without resizing
+	m_detailsBtLabel = m_detailsBt->GetLabel();
+	m_detailsBt->SetLabel(_T("<< ") + m_detailsBtLabel);
 	SetSizer(mainSizer);
 	Layout();
-	// keep the dialog only as wide as its controls need (the button row) so it
-	// does not open as a wide slab; the 600 pixel height is unchanged
-	wxSize minSize = mainSizer->GetMinSize();
-	int dialogWidth = minSize.GetWidth();
-	if (dialogWidth < 320)
-		dialogWidth = 320;
-	else if (dialogWidth > 600)
-		dialogWidth = 600;
+	// wide enough for the button row and the log text; height stays at 600
+	int dialogWidth = mainSizer->GetMinSize().GetWidth();
+	int btWidth = btSizer->GetMinSize().GetWidth() + 16; // + left/right margins
+	if (dialogWidth < btWidth)
+		dialogWidth = btWidth;
+	if (dialogWidth < 560)
+		dialogWidth = 560;
 	SetClientSize(wxSize(dialogWidth, 600));
+	// a resize must never clip the button row either
+	SetMinSize(wxSize(btWidth + 20, 260));
 	Layout();
 	Center();
 
@@ -124,8 +130,6 @@ ProgressDlg::ProgressDlg(MainWin* parent, Cache* cache, bool autoStart) {
 	Connect(wxID_CANCEL,wxEVT_COMMAND_BUTTON_CLICKED,(wxObjectEventFunction)&ProgressDlg::OnCancel);
 	//*)
 
-	m_detailsBtLabel = m_detailsBt->GetLabel();
-	m_detailsBt->SetLabel(_T("<< ") + m_detailsBtLabel);
     m_detailsText->SetFont(wxFont(8, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
 	m_winDisabler = NULL;
 

@@ -162,15 +162,19 @@ bool ProcessBluray::EncodeTitle(Vob* vob, int titleIdx, const wxString& workDir,
 		cmd += wxString::Format(wxT(" -g %d -keyint_min %d -sc_threshold 0 -bf %d -refs %d"), gop, gop / 2, profile.bframes, profile.refs);
 		cmd += wxString::Format(wxT(" -x264opts bluray_compat=%d:slices=%d"), profile.blurayCompat ? 1 : 0, profile.slices);
 	}
-	// chapters force key frames (offset to the trimmed timeline)
+	// chapters force key frames (offset to the trimmed timeline). Some sources
+	// repeat the same chapter several times (down to sub-frame differences),
+	// which would only produce duplicate key frame requests.
 	chapterList.Clear();
+	double lastChapterTime = -1;
 	for (unsigned int i = 0; i < vob->GetCells().size(); i++) {
 		double t = (double) vob->GetCells()[i]->GetStart() / 1000.0 - vob->GetStartTime();
-		if (t <= 0.1)
+		if (t <= 0.1 || (lastChapterTime >= 0 && t - lastChapterTime < 0.5 / fps))
 			continue;
 		if (chapterList.length())
 			chapterList += wxT(",");
 		chapterList += wxString::Format(wxT("%g"), t);
+		lastChapterTime = t;
 	}
 	if (chapterList.length())
 		cmd += wxT(" -force_key_frames ") + chapterList;
@@ -460,6 +464,8 @@ bool ProcessBluray::Execute() {
 	}
 	// resolve the bitrates once: auto-fit uses the selected media size
 	bool avchd = s_config.Disc.GetMode() == BD_MODE_AVCHD;
+	// the progress dialog is shared with DVD authoring, so title it correctly
+	progressDlg->SetTitle(avchd ? _("Generate AVCHD") : _("Generate Blu-ray"));
 	int videoBitrate = GetVideoBitrate(avchd, GetTotalSeconds());
 	int audioBitrate = s_config.Disc.GetAudioBitrate();
 	CheckCapacity(vobCount, videoBitrate, audioBitrate);
