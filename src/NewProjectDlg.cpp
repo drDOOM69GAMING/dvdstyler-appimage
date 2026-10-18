@@ -126,8 +126,15 @@ void NewProjectDlg::CreateDVDPropPanel(wxSizer* sizer, DVD* dvd) {
 	// HD output mode. This is a global (not per-project) setting: the authoring
 	// pipeline chooses Blu-ray/AVCHD or DVD-Video from it when the project is
 	// built, so switching it here takes effect on the next burn without a restart.
+	// The choices are stacked vertically: side by side they are wider than the
+	// new-project column and the last one (AVCHD) gets clipped.
 	AddText(grid, _("HD output:"));
-	wxSizer* hdSizer = BeginGroup(grid, wxT(""));
+	wxSizer* hdPane = BeginGroup(grid, wxT(""));
+	wxSizer* hdSizer = NULL;
+	if (hdPane) {
+		hdSizer = new wxBoxSizer(wxVERTICAL);
+		hdPane->Add(hdSizer, 1, wxEXPAND, 0);
+	}
 	labels.clear();
 	labels.Add(_("none"));
 	labels.Add(_("Blu-ray (BD-R/BD-RE)"));
