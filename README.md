@@ -78,7 +78,7 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
 23. Fixed authoring failure on re-runs: the build output directory was
     cleaned but a leftover BDMV/CERTIFICATE from a previous run was not
     removed, so tsMuxeR overwrote the same playlist file and the authoring
-    step reported "did not add a playlist" — BDMV and CERTIFICATE are now
+    step reported "did not add a playlist"; BDMV and CERTIFICATE are now
     deleted (recursively) before a fresh authoring run
 24. Version bumped from 3.3b6 to 3.3b7
 
@@ -107,7 +107,7 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     the app no longer spams the console
 30. New **File > Burn ISO...** menu item: pick an existing ISO image and it is
     burned straight to the configured drive with the default burn tool
-    (growisofs) at the default speed — no re-encoding or project required
+    (growisofs) at the default speed, so no re-encoding or project is required
 31. The Settings > Core tab is now scrollable and the command fields are wider,
     so all options stay reachable on smaller windows
 32. Version bumped to 3.3b8
@@ -135,7 +135,7 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
 38. Fixed AVCHD projects being muxed as full Blu-ray: `SaveTsMuxeRMeta()` always
     passed `--blu-ray`, and tsMuxeR checks for `--blu-ray` before `--avchd`, so
     every AVCHD build got Blu-ray v2/v3 descriptors plus the META/BDJO/JAR
-    directories that AVCHD does not allow - one of the reasons players reported
+    directories that AVCHD does not allow, one of the reasons players reported
     "unsupported disc" for AVCHD. AVCHD now emits `--avchd` and gets the AVCHD
     (v1) index and descriptors, verified against tsMuxeR 2.7.0
 39. Fixed chapter marks being dropped: the mux option used `--chapter=`, which
@@ -161,6 +161,25 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
 44. Stored disc mode and HD audio bitrate are now validated when read, like they
     already were when written
 45. Version bumped to 3.3b10
+46. Hardware (VA-API) encoding is now detected automatically: when the
+    application starts it runs a short probe encode on the GPU and, if the
+    probe passes, the "Video encoding:" choice in the New Project / DVD
+    Properties panel is preselected to GPU. The choice itself is never
+    disabled, so CPU can be picked by hand, and a driver that fails the
+    probe is reported as a tooltip on the GPU option
+47. Fixed VA-API detection: the render node `/dev/dri/renderD128` is a
+    character device and the check tested for a regular file, so hardware
+    support was never found. Hardware decoding stayed off and GPU encoding
+    was always reported as unavailable
+48. A GPU encode that fails during a build now retries that movie with the
+    CPU encoder and logs the switch, instead of stopping the build
+49. The generation window is sized after its button labels are final, so the
+    whole button row (minimize, cancel/close) is visible without resizing,
+    and the window is titled "Generate Blu-ray" or "Generate AVCHD" for HD
+    builds instead of always "Generate DVD"
+50. Repeated chapter marks in a source (the same moment reported several
+    times, as MP4 chapter tracks often do) are collapsed, so the key frame
+    list no longer contains duplicates
 
 ## Blu-ray / AVCHD playback status
 
@@ -173,6 +192,20 @@ titles were written corrupt. AVCHD projects now get the AVCHD (v1) index and
 descriptors. The Sony PlayStation 4 still needs to be retested - the PS4-proven
 reference discs are authored at 1080p23.976, so if a 29.97 Hz encode is still
 rejected the remaining suspect is the frame rate, not the disc structure.
+
+## Hardware (VA-API) encoding
+
+Hardware encoding runs the decode, the scaling and the H.264 encode on the
+GPU render node and uses a fraction of the CPU load of the x264 software
+encode. When the application starts it probes the GPU by encoding a few
+frames with `h264_vaapi`; if the probe passes, GPU encoding is preselected for
+HD builds and the option is documented in the "Video encoding:" choice of the
+New Project / DVD Properties panel. The probe is repeated on every start, so a
+driver or kernel update is picked up without a setting to hunt for. When the
+probe fails the CPU option simply stays selected and the tooltip on the GPU
+option shows the error the probe reported. A GPU encode that fails in the
+middle of a build falls back to the CPU encoder for that movie. Hardware
+decoding of source files is automatic when a render node is present.
 
 ## Bundled tools
 
@@ -200,7 +233,7 @@ host:
   Fedora 39+, Arch, etc.). Builds produced by the GitHub Actions workflow are
   compiled on Ubuntu 22.04 so they run on any distro with that glibc floor.
 * **FUSE** to launch an AppImage file. Recent Ubuntu (22.04/24.04) and Fedora
-  do not ship `libfuse2` by default — install it
+  do not ship `libfuse2` by default, so install it
   (`sudo apt install libfuse2` / `sudo dnf install fuse2-libs`), or run the
   AppImage with `--appimage-extract-and-run` to use it without FUSE.
 * **An X11 or XWayland session** with a desktop font set and a running D-Bus

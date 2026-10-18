@@ -18,6 +18,7 @@ const wxString APP_LICENCE		= _T("GPL");
 const wxString APP_COPYRIGHT	= wxT("(c) ") + wxString(wxT(APP_COPYRIGHT_YEARS)) + wxT(" ") + APP_MAINT;
 const wxString APP_THANKS		= _T("drDOOM69GAMING");
 const wxString APP_WEBSITE		= _T("http://www.dvdstyler.org");
+const wxString APP_FORK_WEBSITE	= _T("https://github.com/drDOOM69GAMING/dvdstyler-appimage");
 
 class About: public wxDialog {
 public:

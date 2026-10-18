@@ -118,6 +118,22 @@ const wxString DOOMS_CHANGELOG = wxT(
 	"    the overflow shifted the rest of the image out of place.\n"
 	"32. The Blu-ray temp directory <temp>/bd-tmp is cleaned up now.\n"
 	"33. Version bumped to 3.3b10.\n"
+	"34. Hardware (VA-API) encoding is now detected automatically: at start\n"
+	"    up the app runs a short probe encode on the GPU and, when it passes,\n"
+	"    preselects GPU encoding in the New Project / DVD Properties panel\n"
+	"    (the CPU or GPU choice can still be made by hand, and the tooltip on\n"
+	"    the GPU option reports why a driver was rejected). This supersedes\n"
+	"    item 17: the GPU is used by default when it works, and a GPU encode\n"
+	"    that fails mid-build is retried with the CPU encoder.\n"
+	"35. Fixed VA-API detection: the render node /dev/dri/renderD128 is a\n"
+	"    character device and the check tested for a regular file, so hardware\n"
+	"    support was never found and the GPU choice never appeared.\n"
+	"36. The generation window is sized after its button labels are final, so\n"
+	"    its whole button row (minimize, cancel/close) is visible without\n"
+	"    resizing, and it is titled \"Generate Blu-ray\" or \"Generate AVCHD\"\n"
+	"    for HD builds instead of always \"Generate DVD\".\n"
+	"37. Repeated chapter marks in a source are collapsed, so the key frame\n"
+	"    list no longer contains duplicates.\n"
 );
 
 About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,
@@ -170,11 +186,21 @@ About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,
     wxString url = APP_WEBSITE;
     website->SetURL(url);
     aboutSizer->Add(website, 0, wxALIGN_CENTER);
+    aboutSizer->Add(0, 4);
+    // the AppImage build has its own home on GitHub
+    wxHyperlinkCtrl* forkWebsite = new wxHyperlinkCtrl(aboutPanel, wxID_ANY,
+    		_("This AppImage build on GitHub"), APP_FORK_WEBSITE);
+    aboutSizer->Add(forkWebsite, 0, wxALIGN_CENTER);
     
     // support
     wxHtmlWindow* supportPanel = new wxHtmlWindow(notebook, -1,
     		wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER|wxHW_SCROLLBAR_AUTO);
     wxString page = wxT("<html><body>");
+    page += wxT("<h5>") + wxString(_("This AppImage build")) + wxT("</h5>");
+    page += wxString::Format(_("This build is maintained by %s. Please report issues with the AppImage build, Blu-ray/AVCHD authoring or hardware encoding at %sGitHub issues%s."),
+    		APP_THANKS,
+    		wxT("<a href=\"") + APP_FORK_WEBSITE + wxT("/issues\" target=\"_blank\">"),
+    		wxT("</a>"));
     page += wxT("<h5>") + wxString(_("Forum")) + wxT("</h5>");
     page += wxString::Format(_("Please use %sDVDStyler forum%s to get support, ask questions, or discuss this software."),
     		wxT("<a href=\"http://sourceforge.net/p/dvdstyler/discussion/318795/\" target=\"_blank\">"), wxT("</a>"));

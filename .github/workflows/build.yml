@@ -55,4 +55,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          name: DVDStyler ${{ github.ref_name }} AppImage
+          body: |
+            Portable x86_64 AppImage of DVDStyler ${{ github.ref_name }}, with the
+            application, its libraries and every authoring and burning tool
+            bundled inside.
+
+            Download the AppImage, make it executable and run it:
+
+                chmod +x DVDStyler-*-x86_64.AppImage
+                ./DVDStyler-*-x86_64.AppImage
+
+            The README lists the changes in this release, the bundled tools and
+            the system requirements.
+          generate_release_notes: true
           files: DVDStyler-*-x86_64.AppImage
