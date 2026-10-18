@@ -94,8 +94,6 @@ EXTRA_LIBS=(
 	libfreetype.so.6
 	libfribidi.so.0
 	libz.so.1
-	libstdc++.so.6
-	libgcc_s.so.1
 )
 LIB_ARGS=()
 for lib in "${EXTRA_LIBS[@]}"; do
@@ -128,6 +126,28 @@ export VERSION="$VERSION"
 	--plugin gtk \
 	--desktop-file data/dvdstyler.desktop \
 	--icon-file data/dvdstyler.png
+
+# ---------------------------------------------------------------------------
+# Drop the libraries that must come from the host:
+#
+#   libstdc++ / libgcc  have to satisfy the libraries that are linked from the
+#                       host as well. A bundled older C++ runtime makes the
+#                       loader reject them (on current distributions libjack
+#                       needs GLIBCXX_3.4.32, so the bundled ffmpeg could not
+#                       even start).
+#   libva               has to match the host's VA-API driver. A bundled older
+#                       libva fails to initialise newer Mesa drivers
+#                       ("Device creation failed: -5"), so hardware decoding
+#                       and encoding never worked in the released AppImage.
+#
+# Every machine that can run this AppImage (glibc 2.35 or newer) ships these,
+# and linuxdeploy pulls them in through the bundled ffmpeg.
+# ---------------------------------------------------------------------------
+HOST_LIBS=(libstdc++.so.6 libgcc_s.so.1 libva.so.2 libva-drm.so.2 libva-x11.so.2)
+for lib in "${HOST_LIBS[@]}"; do
+	find "$APPDIR/usr/lib" -maxdepth 1 -name "$lib*" -delete
+	echo "left to the host: $lib"
+done
 
 # ---------------------------------------------------------------------------
 # Replace the generated AppRun with our own (adds bundled tools to PATH)

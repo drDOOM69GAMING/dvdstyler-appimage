@@ -62,8 +62,8 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
     command:", "Use mplex (MPEG multiplexer):", "HD audio bitrate:" and
     "allow HD resolutions"
 20. Bundling hardened: the AppImage force-deploys core runtime libraries
-    (fontconfig, freetype, fribidi, zlib, libstdc++, libgcc) that
-    linuxdeploy normally skips, so it runs on more distributions
+    (fontconfig, freetype, fribidi, zlib) that linuxdeploy normally skips,
+    so it runs on more distributions
 
 ## Changes in version 3.3b7
 
@@ -180,6 +180,13 @@ tool so it runs on any x86_64 Linux distribution without a manual install.
 50. Repeated chapter marks in a source (the same moment reported several
     times, as MP4 chapter tracks often do) are collapsed, so the key frame
     list no longer contains duplicates
+51. Fixed two AppImage bundling defects that only showed up on machines with
+    a newer desktop stack. The bundled C++ runtime was older than what host
+    libraries ask for (libjack on current distributions needs
+    GLIBCXX_3.4.32), so the loader refused to start the bundled ffmpeg at
+    all. The bundled libva was older than the host's VA-API driver, so device
+    creation failed with "Device creation failed: -5" and hardware encoding
+    never started. Both now come from the host, like libdrm already did
 
 ## Blu-ray / AVCHD playback status
 

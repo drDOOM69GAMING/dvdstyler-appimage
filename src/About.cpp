@@ -134,6 +134,11 @@ const wxString DOOMS_CHANGELOG = wxT(
 	"    for HD builds instead of always \"Generate DVD\".\n"
 	"37. Repeated chapter marks in a source are collapsed, so the key frame\n"
 	"    list no longer contains duplicates.\n"
+	"38. Fixed two AppImage bundling defects: a bundled older libstdc++ broke\n"
+	"    host libraries that link a newer one (the bundled ffmpeg could not\n"
+	"    start at all on current distributions), and a bundled libva failed to\n"
+	"    initialise newer VA-API drivers (hardware encoding never started).\n"
+	"    Both are taken from the host now.\n"
 );
 
 About::About(wxWindow* parent): wxDialog(parent, -1, wxEmptyString,
